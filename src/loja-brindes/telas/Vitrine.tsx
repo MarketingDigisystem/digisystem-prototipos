@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Factory, Lightbulb, NotebookPen, PackageOpen, SearchX, SlidersHorizontal, TrendingUp, Leaf, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { asset } from "../asset";
 import { CardProduto } from "../CardProduto";
 import { FotoProduto } from "../FotoProduto";
 import { useLoja } from "../estado";
@@ -260,7 +261,7 @@ function FotoBanner() {
   return (
     <div className="relative hidden aspect-square w-52 shrink-0 place-items-center overflow-hidden rounded-3xl bg-[oklch(0.985_0.004_250)] ring-1 ring-white/15 sm:grid md:w-60">
       {!falhou ? (
-        <img src={CAMINHOS[idx]} alt="Caderno e caneta da Digisystem" loading="lazy" onError={() => setIdx((i) => i + 1)} className="h-full w-full object-contain p-6" />
+        <img src={asset(CAMINHOS[idx])} alt="Caderno e caneta da Digisystem" loading="lazy" onError={() => setIdx((i) => i + 1)} className="h-full w-full object-contain p-6" />
       ) : (
         <span className="grid size-full place-items-center bg-[linear-gradient(140deg,var(--navy-soft),var(--sky-soft))] text-primary"><NotebookPen className="size-20" strokeWidth={1.1} aria-hidden /></span>
       )}
