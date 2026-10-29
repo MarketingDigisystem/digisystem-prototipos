@@ -1,0 +1,832 @@
+@import "tailwindcss";
+
+/*
+ * PROTÓTIPO DESCARTÁVEL — não é o app. Fonte da verdade = Lovable.
+ * Tokens copiados 1:1 de src/styles.css do Lovable (commit lido em 2026-09-14,
+ * reconferidos no commit 4fcf254 em 2026-10-07 para o hub-novo: ver
+ * prototipos/hub-novo-notas-leitura.md) para fidelidade visual.
+ * Se o design system real mudar, REGENERAR daqui.
+ *
+ * DigiSystem Hub — Design System
+ * Brand: Azul Reflex #36499b · Orange 021 #ff6d2d · Apoio #67cfee
+ * Type: Dosis (display) + Open Sans (body)
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-navy: var(--navy);
+  --color-navy-soft: var(--navy-soft);
+  --color-navy-foreground: var(--navy-foreground);
+  --color-sky: var(--sky);
+  --color-sky-soft: var(--sky-soft);
+  --color-orange: var(--orange);
+  --color-orange-soft: var(--orange-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --font-display: "Dosis", sans-serif;
+  /* Refino (Onda 2): tipografia de marca correta — Dosis é DISPLAY (headings,
+     rótulos, números, pills); o CORPO volta para Open Sans (leitura longa das
+     descrições de camada, legenda, microcopy). É a verdade do Brand Kit
+     (Dosis + Open Sans) e resolve a ressalva de legibilidade antiga. */
+  --font-sans: "Open Sans", sans-serif;
+  --shadow-float: var(--shadow-float);
+  --shadow-card: var(--shadow-card);
+}
+
+:root {
+  --radius: 1rem;
+
+  /* Brand */
+  --navy: oklch(0.435 0.132 268);            /* #36499b */
+  --navy-soft: oklch(0.435 0.132 268 / 8%);
+  --navy-foreground: oklch(0.985 0.005 250);
+  --orange: oklch(0.705 0.192 41);           /* #ff6d2d */
+  --orange-soft: oklch(0.705 0.192 41 / 12%);
+  --sky: oklch(0.805 0.101 221);             /* #67cfee */
+  --sky-soft: oklch(0.805 0.101 221 / 16%);
+
+  /* Surfaces */
+  --background: oklch(0.972 0.006 255);
+  --foreground: oklch(0.28 0.06 268);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.28 0.06 268);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.28 0.06 268);
+
+  --primary: var(--navy);
+  --primary-foreground: oklch(0.985 0.005 250);
+  --secondary: oklch(0.945 0.012 255);
+  --secondary-foreground: var(--navy);
+  --muted: oklch(0.945 0.012 255);
+  --muted-foreground: oklch(0.52 0.045 265);
+  --accent: var(--orange);
+  --accent-foreground: oklch(0.99 0.005 250);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0.005 250);
+  --border: oklch(0.905 0.014 258);
+  --input: oklch(0.905 0.014 258);
+  --ring: var(--sky);
+
+  --success: oklch(0.62 0.13 155);
+  --success-soft: oklch(0.62 0.13 155 / 12%);
+  --success-foreground: oklch(0.985 0.005 250);
+  --warning: oklch(0.75 0.14 80);
+  --warning-soft: oklch(0.75 0.14 80 / 14%);
+
+  --shadow-card: 0 1px 2px oklch(0.435 0.132 268 / 5%), 0 8px 24px -8px oklch(0.435 0.132 268 / 10%);
+  --shadow-float: 0 12px 40px -8px oklch(0.435 0.132 268 / 25%);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    /* Open Sans no corpo: leitura confortável em blocos longos. */
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Dosis é display: headings e rótulos ganham um leve aperto no tracking e
+     peso de marca. O corpo (p, li, td) herda Open Sans do body. */
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+
+  .font-display {
+    font-family: var(--font-display);
+  }
+}
+
+/* Glassmorphism surface (do app real — src/styles.css) */
+@utility glass {
+  background: oklch(1 0 0 / 68%);
+  backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid oklch(1 0 0 / 55%);
+  box-shadow: var(--shadow-float);
+}
+
+@utility glass-navy {
+  background: oklch(0.32 0.11 268 / 80%);
+  backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid oklch(1 0 0 / 14%);
+  box-shadow: var(--shadow-float);
+}
+
+/* Staggered rise-in (do app real) */
+@keyframes rise-in {
+  0% { opacity: 0; transform: translateY(18px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@utility animate-rise {
+  animation: rise-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Soft radial ambience behind the app (do app real) */
+@utility app-ambience {
+  background:
+    radial-gradient(800px 480px at 8% -10%, oklch(0.805 0.101 221 / 18%), transparent 60%),
+    radial-gradient(700px 420px at 100% 0%, oklch(0.705 0.192 41 / 10%), transparent 55%),
+    var(--color-background);
+}
+
+/* ============================================================
+   Animação "tela abrindo" do modal da arte: agora igual ao app real
+   (src/styles.css @ 4fcf254: persiana abrindo de cima, scaleY .72 → 1,
+   origem no topo, 0.24s). Respeita prefers-reduced-motion.
+   ============================================================ */
+@keyframes tela-abrindo {
+  0% { opacity: 0.4; transform: scaleY(0.72); }
+  100% { opacity: 1; transform: scaleY(1); }
+}
+
+@utility animate-tela-abrindo {
+  transform-origin: top center;
+  animation: tela-abrindo 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Geração da arte: 3 bolinhas da marca percorrendo um círculo (do app real). */
+@keyframes arte-spinner-giro { to { transform: rotate(360deg); } }
+.arte-spinner { animation: arte-spinner-giro 1.5s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .arte-spinner { animation: none; }
+}
+
+/* ============================================================
+   Animações do ícone/botões de IA (barras tipo equalizador).
+   ============================================================ */
+
+/* Onda contínua: cada barra sobe/desce em fase. transform-origin no rodapé
+   faz a barra "crescer" de baixo, como um equalizador. */
+@keyframes ia-wave {
+  0%, 100% { transform: scaleY(0.45); }
+  50%      { transform: scaleY(1); }
+}
+
+/* Barra do IconIA: anima quando o ícone tem a classe .ia-anim.
+   O delay por barra é setado inline (--d) para o efeito de onda. */
+.ia-anim .ia-bar {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: ia-wave 1.15s ease-in-out infinite;
+  animation-delay: var(--d, 0ms);
+}
+
+/* No hover do botão-pai (.group), a onda acelera e ganha amplitude. */
+.group:hover .ia-anim .ia-bar {
+  animation-duration: 0.7s;
+}
+
+/* Shine: um brilho diagonal que cruza o botão no hover. */
+@keyframes ia-shine {
+  0%   { transform: translateX(-120%) skewX(-12deg); opacity: 0; }
+  20%  { opacity: 0.5; }
+  100% { transform: translateX(220%) skewX(-12deg); opacity: 0; }
+}
+@utility ia-shine {
+  position: relative;
+  overflow: hidden;
+}
+.ia-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(100deg, transparent, oklch(1 0 0 / 35%), transparent);
+  transform: translateX(-120%) skewX(-12deg);
+  pointer-events: none;
+}
+.group:hover .ia-shine::after,
+.ia-shine:hover::after {
+  animation: ia-shine 0.9s ease-out;
+}
+
+/* Pulso sutil de anel (usado no ícone do painel "analisando"). */
+@keyframes ia-pulse-ring {
+  0%   { box-shadow: 0 0 0 0 oklch(0.705 0.192 41 / 45%); }
+  70%  { box-shadow: 0 0 0 10px oklch(0.705 0.192 41 / 0%); }
+  100% { box-shadow: 0 0 0 0 oklch(0.705 0.192 41 / 0%); }
+}
+@utility ia-pulse {
+  animation: ia-pulse-ring 1.6s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-tela-abrindo { animation: none; }
+  .animate-rise { animation: none; }
+  .ia-anim .ia-bar { animation: none; transform: none; }
+  .ia-shine::after { display: none; }
+  .ia-pulse { animation: none; }
+}
+
+/* ============================================================
+   Parecer (assistente de análise da triagem) — linguagem visual
+   própria, sem "sparkles" genérico de IA. Um ORBE de aferição:
+   anel fino + glow suave na cor do veredito. Proposta do MP-01.
+   ============================================================ */
+
+/* Respiro do glow por trás do orbe/painel — bem sutil. */
+@keyframes parecer-breathe {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 0.9;  transform: scale(1.04); }
+}
+@utility parecer-glow {
+  animation: parecer-breathe 3.2s ease-in-out infinite;
+}
+
+/* Estado "analisando": anel girando com gradiente cônico da marca. */
+@keyframes parecer-spin {
+  to { transform: rotate(360deg); }
+}
+.parecer-ring-anim {
+  animation: parecer-spin 1.1s linear infinite;
+}
+
+/* Entrada do veredito — o painel "assenta" suavemente. */
+@keyframes parecer-settle {
+  0%   { opacity: 0; transform: translateY(6px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@utility parecer-settle {
+  animation: parecer-settle 0.45s cubic-bezier(0.16, 0.84, 0.44, 1) both;
+}
+
+/* Pontinho pulsante ao lado do rótulo "Parecer". */
+@keyframes parecer-dot {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+.parecer-dot { animation: parecer-dot 1.4s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .parecer-glow, .parecer-ring-anim, .parecer-settle, .parecer-dot {
+    animation: none !important;
+  }
+}
+
+/* "Lendo…" do Parecer — shimmer discreto (uma barra deslizando), sem spinner. */
+@keyframes parecer-shimmer {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(360%); }
+}
+.parecer-shimmer { animation: parecer-shimmer 1.1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .parecer-shimmer { animation: none; }
+}
+
+/* ============================================================
+   Texto "sendo gerado" — inspirado no TextGenerateEffect (Aceternity),
+   mas SEM Framer Motion: só CSS, palavra a palavra (fade + blur),
+   escalonado por --i (índice) no style inline de cada palavra.
+   Alinha com a stack do Hub (animações via CSS/Tailwind).
+   ============================================================ */
+@keyframes tg-reveal {
+  0%   { opacity: 0; filter: blur(10px); }
+  100% { opacity: 1; filter: blur(0); }
+}
+.tg-word {
+  display: inline-block;
+  opacity: 0;
+  filter: blur(10px);
+  animation: tg-reveal 0.7s ease forwards;
+  animation-delay: calc(var(--i) * 0.09s);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tg-word { animation: none; opacity: 1; filter: none; }
+}
+
+/* ============================================================
+   IA Digisystem — bolinhas em ÓRBITA (fase análise) e em REPOUSO (resultado).
+   ============================================================ */
+
+/* Repouso (símbolo estático): assenta com um leve "pop" e respira de leve. */
+@keyframes ia-repouso-in {
+  0%   { opacity: 0; transform: scale(0.4); }
+  60%  { opacity: 1; transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes ia-repouso-respiro {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.04); }
+}
+.ia-repouso {
+  transform-box: fill-box;
+  opacity: 0;
+  animation:
+    ia-repouso-in 0.5s cubic-bezier(0.16, 0.84, 0.44, 1) forwards,
+    ia-repouso-respiro 3s ease-in-out infinite;
+  animation-delay: var(--delay, 0ms), calc(var(--delay, 0ms) + 0.5s);
+}
+
+/* Pós-assentar (fim da coreografia): micro-giro lento do símbolo inteiro, bem
+   sutil — a "animação leve rodando de fundo" no resultado. */
+@keyframes ia-vivo {
+  0%   { transform: rotate(0deg); }
+  50%  { transform: rotate(2.5deg); }
+  100% { transform: rotate(0deg); }
+}
+.ia-pos-assentar {
+  transform-origin: 50% 50%;
+  animation: ia-vivo 5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ia-pos-assentar { animation: none; }
+}
+
+/* ============================================================
+   Card em análise: a BORDA percorre (contorno "carregando") em vez de barra
+   interna. Usa um gradiente cônico girando, mascarado só na moldura.
+   ============================================================ */
+@property --ia-ang {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes ia-borda-giro {
+  to { --ia-ang: 360deg; }
+}
+.ia-borda-analise {
+  position: relative;
+  border: 2px solid transparent;
+  border-radius: var(--radius-3xl);
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    conic-gradient(
+      from var(--ia-ang),
+      var(--navy),
+      var(--accent),
+      var(--sky),
+      var(--navy)
+    ) border-box;
+  animation: ia-borda-giro 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ia-repouso { animation: none; opacity: 1; }
+  .ia-borda-analise { animation: none; }
+}
+
+/* ============================================================
+   AGENTE-MOLÉCULA (Estúdio → etapa Geração)
+   Uma entidade viva que PAIRA e acompanha o scroll. NÃO é balãozinho de chat:
+   é a própria molécula solta, com halo/glow e sombra de flutuação.
+   ============================================================ */
+
+/* Pairar: deriva orgânica (sobe/desce + leve vai-e-vem lateral), como uma
+   entidade realmente flutuando no ar — mais presente, menos tímida. */
+@keyframes agente-float {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  25%  { transform: translate(-7px, -12px) rotate(-2deg); }
+  50%  { transform: translate(4px, -18px) rotate(1.5deg); }
+  75%  { transform: translate(-4px, -8px) rotate(-1deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+/* Glow atrás da molécula: um brilho radial que RESPIRA (escala/opacidade) e
+   ALTERNA a cor entre laranja e azul da marca — sutil, sem ofuscar o símbolo. */
+@keyframes agente-glow-respiro {
+  0%, 100% { opacity: 0.4;  transform: scale(1); }
+  50%      { opacity: 0.7;  transform: scale(1.18); }
+}
+@keyframes agente-glow-cor {
+  0%, 100% { background: radial-gradient(circle at 50% 50%, oklch(0.705 0.192 41 / 40%) 0%, transparent 68%); }  /* laranja */
+  50%      { background: radial-gradient(circle at 50% 50%, oklch(0.45 0.15 268 / 38%) 0%, transparent 68%); }   /* azul reflex */
+}
+
+.agente-float {
+  animation: agente-float 6s ease-in-out infinite;
+}
+.agente-glow {
+  position: absolute;
+  inset: -28%;
+  border-radius: 9999px;
+  filter: blur(12px);
+  pointer-events: none;
+  animation:
+    agente-glow-respiro 3.8s ease-in-out infinite,
+    agente-glow-cor 7s ease-in-out infinite;
+}
+/* Quando processando, o glow fica mais intenso e a alternância mais rápida. */
+.agente-processando .agente-glow {
+  animation:
+    agente-glow-respiro 1.4s ease-in-out infinite,
+    agente-glow-cor 2.8s ease-in-out infinite;
+}
+
+/* Conteúdo do painel: entra suave ao trocar de seção (a key remonta o bloco). */
+@keyframes agente-conteudo-in {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.agente-conteudo {
+  animation: agente-conteudo-in 0.32s cubic-bezier(0.16, 0.84, 0.44, 1);
+}
+
+/* Ação do agente: um filete/glow laranja surge na borda esquerda SÓ no hover
+   (em vez do mini-círculo fixo, que dava "cara lavada de IA"). */
+.agente-acao::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  height: 0;
+  width: 3px;
+  border-radius: 9999px;
+  background: var(--accent);
+  box-shadow: 0 0 10px 1px oklch(0.705 0.192 41 / 55%);
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: height 0.24s ease, opacity 0.24s ease;
+}
+.agente-acao:hover::before {
+  height: 60%;
+  opacity: 1;
+}
+
+/* Painel do agente: "cresce" a partir da molécula (origem no canto). */
+@keyframes agente-painel-in {
+  0%   { opacity: 0; transform: scale(0.85) translateY(8px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.agente-painel {
+  transform-origin: bottom right;
+  animation: agente-painel-in 0.28s cubic-bezier(0.16, 0.84, 0.44, 1);
+}
+
+/* Campo recém-preenchido pelo agente: pisca de leve (realce de foco). */
+@keyframes campo-preenchido {
+  0%   { background-color: oklch(0.705 0.192 41 / 0%); }
+  30%  { background-color: oklch(0.705 0.192 41 / 16%); }
+  100% { background-color: oklch(0.705 0.192 41 / 0%); }
+}
+.campo-preenchido {
+  animation: campo-preenchido 1.1s ease-out;
+}
+
+/* Seção-alvo do agente (quando o painel abre): realce sutil de contorno.
+   Reaproveita a ideia da ia-borda-analise, porém estática (sem giro), só um
+   anel de foco suave. */
+.secao-foco-agente {
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 45%, transparent),
+    0 12px 32px -12px color-mix(in oklab, var(--accent) 35%, transparent);
+  transition: box-shadow 0.4s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .secao-foco-agente { transition: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agente-float,
+  .agente-glow { animation: none; }
+  .agente-painel,
+  .agente-conteudo { animation: none; }
+  .campo-preenchido { animation: none; }
+}
+
+/* ============================================================
+   REFINO DE DESIGN (proposta) — pacote-13
+   Melhorias de: estado de geração, botão do agente (clique + glow),
+   chat modal, botão "Gerar direção criativa".
+   ============================================================ */
+
+/* --- Estado "Gerando imagem": fundo vivo da marca em vez de cinza chapado ---
+   Gradiente suave sky→laranja em movimento lento, com leve textura radial. */
+@keyframes gerando-fundo {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.gerando-fundo {
+  background:
+    radial-gradient(120% 120% at 15% 0%, oklch(0.805 0.101 221 / 22%), transparent 55%),
+    radial-gradient(120% 120% at 100% 100%, oklch(0.705 0.192 41 / 16%), transparent 55%),
+    linear-gradient(120deg, oklch(0.972 0.02 240), oklch(0.96 0.02 250), oklch(0.972 0.02 240));
+  background-size: 100% 100%, 100% 100%, 220% 220%;
+  animation: gerando-fundo 9s ease-in-out infinite;
+  border: 2.5px solid oklch(0.705 0.192 41 / 55%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .gerando-fundo { animation: none; }
+}
+
+/* --- Botão do agente: feedback de CLIQUE ---
+   Hoje só tem scale no hover; falta a sensação de "apertar". O active recolhe
+   e uma onda (ping) irradia do centro no clique. */
+.agente-float {
+  animation: agente-float 6s ease-in-out infinite;
+  transition: transform 0.18s cubic-bezier(0.16, 0.84, 0.44, 1);
+}
+.agente-float:hover { transform: scale(1.1); }
+.agente-float:active { transform: scale(0.9); }
+
+@keyframes agente-clique-onda {
+  0%   { opacity: 0.55; transform: scale(0.7); }
+  100% { opacity: 0;    transform: scale(1.8); }
+}
+.agente-onda {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 2px solid oklch(0.705 0.192 41 / 60%);
+  pointer-events: none;
+  animation: agente-clique-onda 0.6s cubic-bezier(0.16, 0.84, 0.44, 1) forwards;
+}
+
+/* --- Glow do agente: alternância mais NATURAL ---
+   Em vez de 2 keyframes rígidos (respiro + cor) em fase, uso 2 camadas de glow
+   com timings irregulares e defasados, dando um brilho que nunca "bate" no
+   mesmo ponto — respiração orgânica. */
+@keyframes glow-camada-a {
+  0%,100% { opacity: 0.32; transform: scale(1);    }
+  40%     { opacity: 0.6;  transform: scale(1.16); }
+  70%     { opacity: 0.42; transform: scale(1.08); }
+}
+@keyframes glow-camada-b {
+  0%,100% { opacity: 0.5;  transform: scale(1.12); }
+  35%     { opacity: 0.28; transform: scale(0.98); }
+  65%     { opacity: 0.55; transform: scale(1.2);  }
+}
+.agente-glow-a,
+.agente-glow-b {
+  position: absolute;
+  inset: -30%;
+  border-radius: 9999px;
+  filter: blur(14px);
+  pointer-events: none;
+}
+.agente-glow-a {
+  background: radial-gradient(circle at 50% 50%, oklch(0.705 0.192 41 / 42%) 0%, transparent 66%);
+  animation: glow-camada-a 5.2s ease-in-out infinite;
+}
+.agente-glow-b {
+  background: radial-gradient(circle at 50% 50%, oklch(0.45 0.15 268 / 40%) 0%, transparent 66%);
+  animation: glow-camada-b 6.9s ease-in-out infinite;
+}
+.agente-processando .agente-glow-a { animation-duration: 2.1s; }
+.agente-processando .agente-glow-b { animation-duration: 2.7s; }
+@media (prefers-reduced-motion: reduce) {
+  .agente-glow-a, .agente-glow-b { animation: none; }
+}
+
+/* --- Botão "Gerar direção criativa": CTA com brilho de marca ---
+   Gradiente azul→laranja sutil, brilho que desliza no hover, e a molécula
+   pulsa junto. Sensação de "ação de IA", sem virar arco-íris. */
+@keyframes cta-ia-brilho {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+.cta-ia {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(100deg, var(--navy), oklch(0.5 0.15 300), var(--accent));
+  background-size: 160% 100%;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-position 0.6s ease;
+  box-shadow: 0 8px 24px -10px oklch(0.45 0.15 268 / 55%);
+}
+.cta-ia:hover {
+  transform: translateY(-2px);
+  background-position: 100% 0;
+  box-shadow: 0 14px 34px -10px oklch(0.705 0.192 41 / 50%);
+}
+.cta-ia:active { transform: translateY(0) scale(0.98); }
+.cta-ia::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 35%), transparent);
+  transform: translateX(-120%);
+}
+.cta-ia:hover::after {
+  animation: cta-ia-brilho 0.9s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cta-ia::after { animation: none; }
+  .cta-ia:hover { transform: none; }
+}
+
+/* --- Chat modal: bolha da IA com leve entrada --- */
+@keyframes bolha-in {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.bolha-in { animation: bolha-in 0.3s cubic-bezier(0.16, 0.84, 0.44, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .bolha-in { animation: none; }
+}
+
+/* Botão do agente — versão ANTES (glow em fase, sem clique) só para comparar. */
+.agente-float-antes { animation: agente-float 6s ease-in-out infinite; }
+.agente-glow-antes {
+  position: absolute;
+  inset: -28%;
+  border-radius: 9999px;
+  filter: blur(12px);
+  pointer-events: none;
+  animation:
+    agente-glow-respiro 3.8s ease-in-out infinite,
+    agente-glow-cor 7s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .agente-float-antes, .agente-glow-antes { animation: none; }
+}
+
+/* ============================================================
+   REFINO DE DESIGN v2 — ajustes do usuário (pacote-13)
+   ============================================================ */
+
+/* --- Botão do agente: animação de CLIQUE mais rica ---
+   Em vez de uma onda só, o clique dispara: (a) um "squash" elástico no símbolo
+   (recolhe e volta com overshoot) e (b) DUAS ondas concêntricas defasadas que
+   irradiam, uma laranja e uma sky. Sensação de toque com energia. */
+@keyframes agente-squash {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(0.82); }
+  55%  { transform: scale(1.08); }
+  75%  { transform: scale(0.96); }
+  100% { transform: scale(1); }
+}
+.agente-squash { animation: agente-squash 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+@keyframes agente-onda-irradia {
+  0%   { opacity: 0.6; transform: scale(0.65); }
+  100% { opacity: 0;   transform: scale(2);    }
+}
+.agente-onda-1,
+.agente-onda-2 {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  pointer-events: none;
+}
+.agente-onda-1 {
+  border: 2.5px solid oklch(0.705 0.192 41 / 65%);
+  animation: agente-onda-irradia 0.7s cubic-bezier(0.16, 0.84, 0.44, 1) forwards;
+}
+.agente-onda-2 {
+  border: 2px solid oklch(0.805 0.101 221 / 60%);
+  animation: agente-onda-irradia 0.7s cubic-bezier(0.16, 0.84, 0.44, 1) 0.12s forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .agente-squash { animation: none; }
+  .agente-onda-1, .agente-onda-2 { animation: none; opacity: 0; }
+}
+
+/* --- Chat: caixa de texto menos padrão ---
+   Uma "cápsula" com leve gradiente de superfície, borda que acende no foco com
+   um anel suave da marca, e a área toda integrada (input + botão colados numa
+   pílula só, sem cara de <input> genérico). */
+.chat-caixa {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  padding: 0.35rem 0.35rem 0.35rem 1.1rem;
+  background: linear-gradient(180deg, oklch(1 0 0), oklch(0.972 0.012 250));
+  border: 1.5px solid oklch(0.905 0.014 258);
+  box-shadow: inset 0 1px 2px oklch(0.435 0.132 268 / 6%);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.chat-caixa:focus-within {
+  border-color: oklch(0.705 0.192 41 / 60%);
+  box-shadow: 0 0 0 4px oklch(0.705 0.192 41 / 12%), inset 0 1px 2px oklch(0.435 0.132 268 / 6%);
+}
+.chat-caixa input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.875rem;
+  color: var(--foreground);
+}
+.chat-caixa input::placeholder { color: var(--muted-foreground); }
+
+/* Botão de envio: pílula com gradiente da marca + micro-interação.
+   A seta desliza levemente ao passar o mouse; recolhe no clique. */
+.chat-enviar {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  height: 2.5rem;
+  width: 2.5rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, var(--accent), oklch(0.66 0.19 33));
+  color: var(--accent-foreground);
+  box-shadow: 0 6px 16px -6px oklch(0.705 0.192 41 / 60%);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.chat-enviar:hover { transform: scale(1.06); box-shadow: 0 10px 22px -6px oklch(0.705 0.192 41 / 70%); }
+.chat-enviar:active { transform: scale(0.9); }
+.chat-enviar:disabled { opacity: 0.4; }
+.chat-enviar svg { transition: transform 0.2s ease; }
+.chat-enviar:hover:not(:disabled) svg { transform: translate(1px, -1px); }
+
+/* ============================================================
+   ESTADO "GERANDO IMAGEM" — propostas alternativas de design (v3)
+   ============================================================ */
+
+/* PROPOSTA A — "Placa de vidro" (glass) com borda laranja viva.
+   Superfície translúcida com blur, brilho de topo, borda accent grossa e um
+   halo laranja suave que respira ao redor. Elegante, menos "cartão chapado". */
+.gerando-glass {
+  position: relative;
+  border-radius: 1.5rem;
+  border: 2.5px solid oklch(0.705 0.192 41 / 55%);
+  background:
+    radial-gradient(140% 100% at 50% -20%, oklch(1 0 0 / 70%), transparent 60%),
+    linear-gradient(160deg, oklch(0.98 0.02 240 / 85%), oklch(0.95 0.03 250 / 80%));
+  backdrop-filter: blur(8px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 60%),
+    0 10px 30px -12px oklch(0.705 0.192 41 / 40%);
+  overflow: hidden;
+}
+.gerando-glass::before {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: radial-gradient(circle at 50% 30%, oklch(0.705 0.192 41 / 14%), transparent 60%);
+  animation: gerando-halo 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes gerando-halo {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%      { opacity: 0.9; transform: scale(1.12); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gerando-glass::before { animation: none; }
+}
+
+/* PROPOSTA B — "Aurora": fundo escuro azul-marinho com aurora sky/laranja
+   fluindo, borda laranja. Dá um respiro premium/tech e faz as bolinhas
+   brilharem sobre fundo escuro. Texto claro. */
+.gerando-aurora {
+  position: relative;
+  border-radius: 1.5rem;
+  border: 2.5px solid oklch(0.705 0.192 41 / 60%);
+  background:
+    radial-gradient(120% 120% at 20% 0%, oklch(0.805 0.101 221 / 45%), transparent 55%),
+    radial-gradient(120% 120% at 90% 100%, oklch(0.705 0.192 41 / 40%), transparent 55%),
+    linear-gradient(150deg, oklch(0.32 0.09 268), oklch(0.28 0.08 268));
+  background-size: 180% 180%, 180% 180%, 100% 100%;
+  animation: gerando-aurora-fluxo 8s ease-in-out infinite;
+  box-shadow: 0 12px 34px -12px oklch(0.32 0.09 268 / 60%);
+  overflow: hidden;
+}
+@keyframes gerando-aurora-fluxo {
+  0%   { background-position: 0% 0%, 100% 100%, 0 0; }
+  50%  { background-position: 100% 50%, 0% 50%, 0 0; }
+  100% { background-position: 0% 0%, 100% 100%, 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gerando-aurora { animation: none; }
+}
+
+/* ============================================================
+   EQUIPE — variações de card de usuário (anti "cara de AI")
+   ============================================================ */
+/* Linha do diretório editorial: divisor sutil, hover discreto. */
+.equipe-linha {
+  transition: background-color 0.18s ease;
+}
+.equipe-linha:hover {
+  background-color: oklch(0.945 0.012 255 / 60%);
+}

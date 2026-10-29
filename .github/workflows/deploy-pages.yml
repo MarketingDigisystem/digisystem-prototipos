@@ -1,0 +1,46 @@
+name: Deploy do protótipo para o GitHub Pages
+
+# Builda o protótipo React/Vite (apenas interface, dados mock) e publica em GitHub Pages.
+# Roda na nuvem do GitHub (Linux) — não depende de nenhuma máquina ligada.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Instalar dependências
+        run: npm install
+      - name: Build (base do Pages = /digisystem-prototipos/)
+        run: npm run build -- --base=/digisystem-prototipos/
+      - name: Preparar SPA (404 = index para rotas por hash/estado)
+        run: cp dist/index.html dist/404.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
