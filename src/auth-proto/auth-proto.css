@@ -1,0 +1,147 @@
+/*
+ * PROTÓTIPO DESCARTÁVEL — não é o app. Fonte da verdade = Lovable.
+ * Gerado de: conceito novo (tela de Auth "liquid glass", referências do usuário)
+ *   @ leitura/decisão 2026-10-29. Dados MOCK, sem backend, sem segredos.
+ * Regenerar (não remendar) se o conceito mudar.
+ * Decisão de design correspondente: .agents/tasks/prototipo-auth/.
+ *
+ * Estilos próprios da tela de Auth: fundo azul da marca, orbes (esferas) que
+ * flutuam devagar e o cartão "liquid glass" (vidro fosco) sobre eles.
+ * Só anima transform/opacity. prefers-reduced-motion desliga a deriva.
+ */
+
+/* ------------------------------------------------------------------
+   Palco do Auth — fundo azul Reflex da marca (#36499b) com um leve
+   gradiente para dar profundidade. As esferas e o cartão ficam por cima.
+   ------------------------------------------------------------------ */
+.auth-palco {
+  background:
+    radial-gradient(130% 110% at 18% -10%, oklch(0.48 0.14 268) 0%, transparent 55%),
+    radial-gradient(120% 120% at 100% 100%, oklch(0.36 0.12 268) 0%, transparent 60%),
+    oklch(0.435 0.132 268); /* #36499b */
+}
+
+/* ------------------------------------------------------------------
+   Orbes/esferas — azul mais escuro (#2a397a), alguns com brilho radial
+   no topo para dar volume de esfera. Ficam borrados e derivam devagar.
+   ------------------------------------------------------------------ */
+.auth-orbe {
+  position: absolute;
+  border-radius: 9999px;
+  /* Esfera: sombra interna embaixo + brilho claro no topo. */
+  background:
+    radial-gradient(120% 120% at 32% 24%, oklch(0.56 0.12 262 / 85%) 0%, oklch(0.33 0.12 268) 48%, oklch(0.27 0.1 268) 100%);
+  box-shadow:
+    inset 0 -14px 40px oklch(0.2 0.08 268 / 60%),
+    inset 0 10px 28px oklch(0.75 0.1 255 / 35%);
+  filter: blur(2px);
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+/* Variante mais lisa (sem tanto brilho de topo), para as esferas de fundo. */
+.auth-orbe-liso {
+  background: radial-gradient(120% 120% at 40% 30%, oklch(0.4 0.12 268) 0%, oklch(0.28 0.1 268) 100%);
+  box-shadow: inset 0 -10px 30px oklch(0.2 0.08 268 / 55%);
+  filter: blur(6px);
+}
+
+/* Derivas suaves — cada orbe usa uma. Só transform + opacity. */
+@keyframes auth-deriva-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(28px, -34px, 0) scale(1.06); }
+}
+@keyframes auth-deriva-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(-32px, 26px, 0) scale(1.04); }
+}
+@keyframes auth-deriva-c {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.9; }
+  50%      { transform: translate3d(22px, 30px, 0) scale(0.95); opacity: 1; }
+}
+@keyframes auth-deriva-d {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(-26px, -22px, 0) scale(1.05); }
+}
+
+.auth-orbe-a { animation: auth-deriva-a 18s ease-in-out infinite; }
+.auth-orbe-b { animation: auth-deriva-b 22s ease-in-out infinite; }
+.auth-orbe-c { animation: auth-deriva-c 16s ease-in-out infinite; }
+.auth-orbe-d { animation: auth-deriva-d 25s ease-in-out infinite; }
+
+/* ------------------------------------------------------------------
+   Cartão liquid glass — superfície translúcida azul com blur+saturate,
+   borda fininha branca translúcida, brilho de topo e sombra flutuante.
+   Fallback: sem backdrop-filter, usa uma cor translúcida sólida mais opaca.
+   ------------------------------------------------------------------ */
+.auth-glass {
+  position: relative;
+  background: oklch(0.42 0.12 268 / 42%);
+  border: 1px solid oklch(1 0 0 / 28%);
+  box-shadow:
+    0 24px 60px -18px oklch(0.18 0.08 268 / 65%),
+    inset 0 1px 0 oklch(1 0 0 / 35%);
+}
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .auth-glass {
+    background: oklch(0.42 0.12 268 / 30%);
+    -webkit-backdrop-filter: blur(22px) saturate(150%);
+    backdrop-filter: blur(22px) saturate(150%);
+  }
+}
+/* Fallback explícito quando NÃO há suporte a backdrop-filter: cor mais sólida
+   para garantir contraste e leitura (não transparece o fundo demais). */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .auth-glass {
+    background: oklch(0.38 0.12 268 / 92%);
+  }
+}
+
+/* Brilho de topo mais marcado (reforça a borda superior iluminada do vidro). */
+.auth-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, oklch(1 0 0 / 14%) 0%, transparent 22%);
+  pointer-events: none;
+}
+
+/* Campos de vidro: fundo translúcido claro, borda suave, texto legível.
+   Véu levemente mais claro que o cartão para destacar o input. */
+.auth-campo {
+  background: oklch(1 0 0 / 12%);
+  border: 1px solid oklch(1 0 0 / 22%);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+.auth-campo:hover {
+  background: oklch(1 0 0 / 16%);
+}
+.auth-campo:focus-within {
+  background: oklch(1 0 0 / 18%);
+  border-color: oklch(0.805 0.101 221 / 85%); /* apoio sky */
+  box-shadow: 0 0 0 3px oklch(0.805 0.101 221 / 30%);
+}
+.auth-campo input {
+  background: transparent;
+  border: none;
+  outline: none;
+  width: 100%;
+  color: oklch(0.99 0.004 250);
+}
+.auth-campo input::placeholder { color: oklch(0.99 0.004 250 / 60%); }
+
+/* Entrada suave do cartão/conteúdo ao trocar de tela. */
+@keyframes auth-entrada {
+  0%   { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.auth-entrada { animation: auth-entrada 0.4s cubic-bezier(0.16, 0.84, 0.44, 1) both; }
+
+/* ------------------------------------------------------------------
+   Reduced motion: esferas paradas, sem entrada animada. Tudo legível.
+   ------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  .auth-orbe-a, .auth-orbe-b, .auth-orbe-c, .auth-orbe-d { animation: none; }
+  .auth-entrada { animation: none; }
+}

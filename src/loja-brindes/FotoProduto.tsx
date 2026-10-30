@@ -14,7 +14,6 @@ import {
   PenTool, PlugZap, Shirt, ShoppingBag, Snowflake, Sprout, StickyNote, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { asset } from "./asset";
 import type { Foto, FundoFoto, IconeProduto, Produto } from "./tipos";
 
 export const ICONES: Record<IconeProduto, LucideIcon> = {
@@ -51,9 +50,6 @@ export function FotoProduto({
 
   const temFoto = !!f.src && !falhou;
   const ariaLabel = rotulo ?? `${produto.nome}: ${f.legenda}`;
-  // Resolve os caminhos de public/ contra o base do Vite (necessário no GitHub Pages).
-  const srcUrl = asset(f.src);
-  const pdfUrl = asset(f.pdf);
 
   // Arte em PDF (ex.: folder institucional): no tamanho grande, o navegador renderiza o PDF
   // nativo via <embed>. Nos tamanhos mini/card fica a imagem (f.src) para não pesar.
@@ -63,8 +59,8 @@ export function FotoProduto({
         className={cn("relative isolate overflow-hidden bg-[color:var(--foto-fundo)]", dessaturar && "opacity-70 grayscale", className)}
         style={{ "--foto-fundo": "oklch(0.985 0.004 250)" } as CSSProperties}
       >
-        <object data={`${pdfUrl}#page=1&toolbar=0&navpanes=0&view=FitH`} type="application/pdf" aria-label={ariaLabel} className="h-full w-full">
-          {srcUrl ? <img src={srcUrl} alt={ariaLabel} className="h-full w-full object-contain p-6 sm:p-8" /> : null}
+        <object data={`${f.pdf}#page=1&toolbar=0&navpanes=0&view=FitH`} type="application/pdf" aria-label={ariaLabel} className="h-full w-full">
+          {f.src ? <img src={f.src} alt={ariaLabel} className="h-full w-full object-contain p-6 sm:p-8" /> : null}
         </object>
       </div>
     );
@@ -78,7 +74,7 @@ export function FotoProduto({
         style={{ "--foto-fundo": "oklch(0.985 0.004 250)" } as CSSProperties}
       >
         <img
-          src={srcUrl}
+          src={f.src}
           alt={ariaLabel}
           loading="lazy"
           onError={() => setFalhou(true)}
