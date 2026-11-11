@@ -70,3 +70,9 @@ CabeÃ§alho com larguras fixas (marca 148px; "Sugira um brinde" 168px, "Pedidos" 
 - `FotoBrinde.tsx` foto com fallback elegante da marca.
 - `LojaDigiStore.tsx` raiz e shell.
 - `telas/` telas.
+
+## Link para revisão (tarefa 1.7)
+
+- URL: https://marketingdigisystem.github.io/digisystem-prototipos/#/loja-digi-store?revisao=1 (abre como Diretor; para a visão Equipe, menu da conta > "Ver o protótipo como" > Equipe, pois a visão não é controlada pela URL)
+- Commit no repo de protótipos: e2a4db5 ("protótipo Digi Store para revisão"), Action run 43063200177 (success)
+- Link temporário de protótipo descartável; dados fictícios.

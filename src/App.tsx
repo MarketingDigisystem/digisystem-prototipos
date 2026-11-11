@@ -13,8 +13,9 @@ import { EstudioConteudo } from "./estudio-conteudo/EstudioConteudo";
 import { OpcaoDPopover } from "./estudio-conteudo/OpcaoDPopover";
 import { EstudioFinal } from "./estudio-final/EstudioFinal";
 import { LojaDigiStore } from "./loja-digi-store/LojaDigiStore";
+import { RedesGrade } from "./redes/RedesGrade";
 
-type ProtoId = "auth" | "digiplace" | "estudio-conteudo" | "estudio-opcao-d" | "estudio-final" | "loja-digi-store";
+type ProtoId = "auth" | "digiplace" | "estudio-conteudo" | "estudio-opcao-d" | "estudio-final" | "loja-digi-store" | "redes";
 
 const PROTOTIPOS: { id: ProtoId; rotulo: string }[] = [
   { id: "estudio-conteudo", rotulo: "Estúdio — Conteúdo + Arte" },
@@ -22,6 +23,7 @@ const PROTOTIPOS: { id: ProtoId; rotulo: string }[] = [
   { id: "estudio-final", rotulo: "Estúdio — Visão final (produção)" },
   { id: "digiplace", rotulo: "DigiPlace" },
   { id: "loja-digi-store", rotulo: "Digi Store" },
+  { id: "redes", rotulo: "Redes (grade)" },
   { id: "auth", rotulo: "Login (Auth)" },
 ];
 
@@ -31,6 +33,7 @@ const PROTOTIPOS: { id: ProtoId; rotulo: string }[] = [
 function protoDoHash(): ProtoId {
   // Primeiro segmento do hash: "loja-digi-store/pedidos?estado=vazio" -> "loja-digi-store".
   const h = window.location.hash.replace(/^#\/?/, "").split(/[/?]/)[0];
+  if (h === "redes" || h === "redes-grade") return "redes";
   if (h === "auth" || h === "digiplace" || h === "estudio-conteudo" || h === "estudio-opcao-d" || h === "estudio-final" || h === "loja-digi-store") return h;
   return "digiplace";
 }
@@ -52,7 +55,7 @@ export function App() {
   return (
     <>
       {/* Seletor de protótipo — só do protótipo. Oculto na Digi Store para não cobrir o cabeçalho (trocar via hash). */}
-      {proto !== "loja-digi-store" && (
+      {proto !== "loja-digi-store" && proto !== "redes" && (
       <div
         style={{
           position: "fixed",
@@ -105,6 +108,8 @@ export function App() {
         <OpcaoDPopover />
       ) : proto === "estudio-final" ? (
         <EstudioFinal />
+      ) : proto === "redes" ? (
+        <RedesGrade />
       ) : proto === "loja-digi-store" ? (
         <LojaDigiStore />
       ) : (

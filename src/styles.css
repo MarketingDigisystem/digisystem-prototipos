@@ -106,6 +106,45 @@
   --shadow-float: 0 12px 40px -8px oklch(0.435 0.132 268 / 25%);
 }
 
+/* Tema escuro (tarefa 10.4 do protótipo de Redes): mesmos tokens de src/hub/ui/tema-escuro.css do app
+   (azul-marinho, nunca preto). Ativado pela classe `dark` no <html>. */
+.dark {
+  color-scheme: dark;
+  --navy: #8ea0f0;
+  --navy-soft: rgba(142, 160, 240, 0.16);
+  --navy-foreground: #0b1230;
+  --sky: #67cfee;
+  --sky-soft: rgba(103, 207, 238, 0.1);
+  --orange: #ff6d2d;
+  --orange-soft: rgba(255, 109, 45, 0.18);
+  --background: #0b1230;
+  --foreground: #e8ecf8;
+  --card: #1d2858;
+  --card-foreground: #e8ecf8;
+  --popover: #111a40;
+  --popover-foreground: #e8ecf8;
+  --primary: #8ea0f0;
+  --primary-foreground: #0b1230;
+  --secondary: #111a40;
+  --secondary-foreground: #8ea0f0;
+  --muted: #111a40;
+  --muted-foreground: #aab4d6;
+  --accent: #ff6d2d;
+  --accent-foreground: #0b1230;
+  --border: #243064;
+  --input: #2c3870;
+  --ring: #8ea0f0;
+  --destructive: #ff8a80;
+  --destructive-foreground: #0b1230;
+  --success: #6fcf97;
+  --success-soft: rgba(111, 207, 151, 0.16);
+  --success-foreground: #0b1230;
+  --warning: #f2c14e;
+  --warning-soft: rgba(242, 193, 78, 0.16);
+  --shadow-card: 0 1px 2px rgba(3, 6, 20, 0.45), 0 8px 24px -8px rgba(3, 6, 20, 0.55);
+  --shadow-float: 0 12px 40px -8px rgba(3, 6, 20, 0.7);
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
