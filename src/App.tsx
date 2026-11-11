@@ -9,18 +9,30 @@
 import { useEffect, useState } from "react";
 import { AuthProto } from "./auth-proto/AuthProto";
 import { LojaBrindes } from "./LojaBrindes";
+import { EstudioConteudo } from "./estudio-conteudo/EstudioConteudo";
+import { OpcaoDPopover } from "./estudio-conteudo/OpcaoDPopover";
+import { EstudioFinal } from "./estudio-final/EstudioFinal";
+import { LojaDigiStore } from "./loja-digi-store/LojaDigiStore";
 
-type ProtoId = "auth" | "digiplace";
+type ProtoId = "auth" | "digiplace" | "estudio-conteudo" | "estudio-opcao-d" | "estudio-final" | "loja-digi-store";
 
 const PROTOTIPOS: { id: ProtoId; rotulo: string }[] = [
+  { id: "estudio-conteudo", rotulo: "Estúdio — Conteúdo + Arte" },
+  { id: "estudio-opcao-d", rotulo: "Estúdio — Opção D (popover)" },
+  { id: "estudio-final", rotulo: "Estúdio — Visão final (produção)" },
   { id: "digiplace", rotulo: "DigiPlace" },
+  { id: "loja-digi-store", rotulo: "Digi Store" },
   { id: "auth", rotulo: "Login (Auth)" },
 ];
 
-// Lê a escolha do hash (#auth / #digiplace) para o link carregar direto no protótipo certo.
+// Lê a escolha do hash (#auth / #digiplace / #estudio-conteudo) para o link
+// carregar direto no protótipo certo. O hash router aceita "#/estudio-conteudo"
+// (com barra) e "#estudio-conteudo" — normalizamos removendo a barra inicial.
 function protoDoHash(): ProtoId {
-  const h = window.location.hash.replace("#", "");
-  return h === "auth" || h === "digiplace" ? h : "digiplace";
+  // Primeiro segmento do hash: "loja-digi-store/pedidos?estado=vazio" -> "loja-digi-store".
+  const h = window.location.hash.replace(/^#\/?/, "").split(/[/?]/)[0];
+  if (h === "auth" || h === "digiplace" || h === "estudio-conteudo" || h === "estudio-opcao-d" || h === "estudio-final" || h === "loja-digi-store") return h;
+  return "digiplace";
 }
 
 export function App() {
@@ -39,7 +51,8 @@ export function App() {
 
   return (
     <>
-      {/* Seletor de protótipo — só do protótipo, para ver os dois no mesmo link. */}
+      {/* Seletor de protótipo — só do protótipo. Oculto na Digi Store para não cobrir o cabeçalho (trocar via hash). */}
+      {proto !== "loja-digi-store" && (
       <div
         style={{
           position: "fixed",
@@ -82,8 +95,23 @@ export function App() {
           );
         })}
       </div>
+      )}
 
-      {proto === "auth" ? <AuthProto /> : <LojaBrindes />}
+      {proto === "auth" ? (
+        <AuthProto />
+      ) : proto === "estudio-conteudo" ? (
+        <EstudioConteudo />
+      ) : proto === "estudio-opcao-d" ? (
+        <OpcaoDPopover />
+      ) : proto === "estudio-final" ? (
+        <EstudioFinal />
+      ) : proto === "loja-digi-store" ? (
+        <LojaDigiStore />
+      ) : (
+        <LojaBrindes />
+      )}
     </>
   );
 }
+
+

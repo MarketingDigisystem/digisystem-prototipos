@@ -1,0 +1,26 @@
+/*
+ * PROTÓTIPO DESCARTÁVEL — não é o app.
+ * Tokens "strong" (A1/A2, contraste AA) copiados do styles.css do Lovable (leitura 2026-11-11), escopados
+ * à Digi Store para não mexer nos outros protótipos.
+ * Fonte da verdade = Lovable. Regenerar (não remendar) se o real mudar.
+ */
+.ds-root {
+  --accent-strong: oklch(0.56 0.19 41);
+  --warning-strong: oklch(0.49 0.12 80); /* escurecido no protótipo (tarefa 1.6): AA sobre fundo suave */
+  --success-strong: oklch(0.47 0.12 155); /* escurecido no protótipo (tarefa 1.6): AA sobre fundo suave */
+  font-family: var(--font-sans);
+  color: var(--foreground);
+  min-height: 100vh;
+  background:
+    radial-gradient(800px 480px at 8% -10%, oklch(0.805 0.101 221 / 18%), transparent 60%),
+    radial-gradient(700px 420px at 100% 0%, oklch(0.705 0.192 41 / 10%), transparent 55%),
+    var(--background);
+}
+.ds-root h1, .ds-root h2, .ds-root h3, .ds-root h4 { font-family: var(--font-display); }
+
+/* A barra de rolagem aparecendo ou sumindo nunca desloca o cabeçalho. */
+html:has(.ds-root) { scrollbar-gutter: stable; }
+
+/* Carrinho: folha lateral fixa; abrir ou fechar não empurra nada. */
+.ds-sheet { transition: transform var(--mov-medio, 240ms) var(--mov-curva, ease); }
+@media (prefers-reduced-motion: reduce) { .ds-sheet { transition: none; } }

@@ -830,3 +830,1036 @@
 .equipe-linha:hover {
   background-color: oklch(0.945 0.012 255 / 60%);
 }
+
+/* ============================================================
+   ESTÚDIO — CONTEÚDO + ARTE (protótipo descartável "estudio-conteudo")
+   Indicadores de carregamento das 4 Ações Assíncronas (Req. 12) +
+   loader discreto (Req. 2.7/2.8) + variantes de redução de movimento.
+   Materializa os itens [A CONFIRMAR NO PROTÓTIPO] do design.
+   ============================================================ */
+
+/* --- Skeleton base (busca no acervo): pulso de brilho da marca atravessando
+   placeholders com a MESMA forma dos cards finais. Sem layout shift. --- */
+@keyframes ec-skeleton-sweep {
+  0%   { background-position: -160% 0; }
+  100% { background-position: 260% 0; }
+}
+.ec-skeleton {
+  background:
+    linear-gradient(
+      100deg,
+      oklch(0.93 0.012 255) 20%,
+      oklch(0.805 0.101 221 / 35%) 42%,
+      oklch(0.97 0.012 255) 55%,
+      oklch(0.93 0.012 255) 75%
+    );
+  background-size: 220% 100%;
+  animation: ec-skeleton-sweep 1.4s ease-in-out infinite;
+}
+
+/* --- Barra de progresso indeterminada (geração de texto / imagem):
+   um segmento azul→laranja desliza em trilho sky. --- */
+@keyframes ec-bar-slide {
+  0%   { left: -42%; }
+  100% { left: 100%; }
+}
+.ec-bar-trilho {
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: oklch(0.805 0.101 221 / 22%);
+}
+.ec-bar-trilho::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 42%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--navy), var(--accent));
+  animation: ec-bar-slide 1.25s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+/* --- Loader DISCRETO (ação pontual "Finalizar arte"): anel fino que gira.
+   NÃO é o símbolo da IA. Pequeno, restrito à duração da ação. --- */
+@keyframes ec-spin { to { transform: rotate(360deg); } }
+.ec-spinner {
+  border-radius: 9999px;
+  border: 2px solid oklch(0.435 0.132 268 / 18%);
+  border-top-color: var(--accent);
+  animation: ec-spin 0.7s linear infinite;
+}
+
+/* --- Pulso de seleção: anel sky que confirma a imagem escolhida (sucesso
+   in-context, sem deslocar nada). --- */
+@keyframes ec-select-pop {
+  0%   { box-shadow: 0 0 0 0 oklch(0.805 0.101 221 / 55%); }
+  70%  { box-shadow: 0 0 0 8px oklch(0.805 0.101 221 / 0%); }
+  100% { box-shadow: 0 0 0 0 oklch(0.805 0.101 221 / 0%); }
+}
+.ec-select-pop { animation: ec-select-pop 0.6s ease-out; }
+
+/* --- Realce "campo gerado pela IA" ao voltar ao estado ok. --- */
+@keyframes ec-ok-flash {
+  0%   { background-color: oklch(0.62 0.13 155 / 0%); }
+  30%  { background-color: oklch(0.62 0.13 155 / 12%); }
+  100% { background-color: oklch(0.62 0.13 155 / 0%); }
+}
+.ec-ok-flash { animation: ec-ok-flash 1s ease-out; }
+
+/* --- Fundo "gerando imagem" (momento de peso): aurora navy/sky/laranja lenta
+   atrás do símbolo da IA. Reusa a ideia do .gerando-aurora mas mais contido. --- */
+@keyframes ec-aurora {
+  0%   { background-position: 0% 0%, 100% 100%; }
+  50%  { background-position: 100% 50%, 0% 50%; }
+  100% { background-position: 0% 0%, 100% 100%; }
+}
+.ec-gerando-fundo {
+  background:
+    radial-gradient(120% 120% at 18% 0%, oklch(0.805 0.101 221 / 40%), transparent 55%),
+    radial-gradient(120% 120% at 92% 100%, oklch(0.705 0.192 41 / 34%), transparent 55%),
+    linear-gradient(150deg, oklch(0.33 0.09 268), oklch(0.28 0.08 268));
+  background-size: 180% 180%, 180% 180%, 100% 100%;
+  animation: ec-aurora 8s ease-in-out infinite;
+}
+
+/* --- REDUÇÃO DE MOVIMENTO: variantes estáticas que ainda comunicam "em
+   andamento". A classe .reduzir-mov é aplicada pelo toggle do protótipo para
+   demonstrar sem mexer no SO; o @media cobre a preferência real do sistema. --- */
+.reduzir-mov .ec-skeleton,
+.reduzir-mov .ec-bar-trilho::after,
+.reduzir-mov .ec-spinner,
+.reduzir-mov .ec-gerando-fundo,
+.reduzir-mov .ec-select-pop,
+.reduzir-mov .ec-ok-flash {
+  animation: none !important;
+}
+/* Estático mas legível: skeleton vira cinza-sky fixo; barra vira 35% preenchida
+   fixa; spinner vira arco parado; aurora vira gradiente estático. */
+.reduzir-mov .ec-skeleton { background: oklch(0.805 0.101 221 / 22%); }
+.reduzir-mov .ec-bar-trilho::after { left: 0; width: 35%; }
+.reduzir-mov .ec-spinner { border-top-color: var(--accent); }
+.reduzir-mov .ec-gerando-fundo { background-size: 100% 100%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ec-skeleton { animation: none; background: oklch(0.805 0.101 221 / 22%); }
+  .ec-bar-trilho::after { animation: none; left: 0; width: 35%; }
+  .ec-spinner { animation: none; }
+  .ec-gerando-fundo { animation: none; background-size: 100% 100%; }
+  .ec-select-pop, .ec-ok-flash { animation: none; }
+}
+
+/* ============================================================
+   ESTÚDIO — CONTEÚDO + ARTE · RODADA 2 de refino
+   (1) agente gera imagem · (2) outside-click dismiss · (3) abas de origem de
+   imagem animadas · (4) galeria de alternativas do indicador de etapas.
+   Todas as animações respeitam .reduzir-mov (toggle) e prefers-reduced-motion.
+   ============================================================ */
+
+/* --- (3) BARRA DE ABAS das origens de imagem: indicador ativo DESLIZANTE.
+   O "polegar" (thumb) é posicionado por variáveis --ec-tab-x/--ec-tab-w setadas
+   inline no React; a transição anima o deslize entre abas. --- */
+.ec-tabs {
+  position: relative;
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.3rem;
+  border-radius: 1rem;
+  background: oklch(0.945 0.012 255);
+  border: 1px solid var(--border);
+}
+.ec-tabs-thumb {
+  position: absolute;
+  top: 0.3rem;
+  bottom: 0.3rem;
+  left: var(--ec-tab-x, 0px);
+  width: var(--ec-tab-w, 0px);
+  border-radius: 0.7rem;
+  background: var(--card);
+  box-shadow: var(--shadow-card);
+  border: 1px solid oklch(0.705 0.192 41 / 35%);
+  transition: left 0.32s cubic-bezier(0.16, 0.84, 0.44, 1),
+    width 0.32s cubic-bezier(0.16, 0.84, 0.44, 1);
+  pointer-events: none;
+  z-index: 0;
+}
+.ec-tab {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 0.7rem;
+  padding: 0.5rem 0.4rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.ec-tab[data-ativa="true"] { color: var(--navy); }
+.ec-tab:hover:not([data-ativa="true"]) { color: var(--navy); }
+
+/* Aba "Prévia" destacada, separada das três de origem. */
+.ec-tab-previa {
+  border: 1.5px solid oklch(0.705 0.192 41 / 45%);
+  background: linear-gradient(135deg, oklch(0.805 0.101 221 / 14%), oklch(0.705 0.192 41 / 10%));
+  color: var(--navy);
+}
+
+/* Cross-fade do conteúdo das abas. A key da React remonta → dispara o fade. */
+@keyframes ec-tab-fade {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.ec-tab-conteudo { animation: ec-tab-fade 0.3s cubic-bezier(0.16, 0.84, 0.44, 1); }
+
+/* Spinner de upload (ação pontual → discreto, igual ao ec-spinner mas sky). */
+.ec-upload-spin {
+  border-radius: 9999px;
+  border: 2px solid oklch(0.805 0.101 221 / 25%);
+  border-top-color: var(--sky);
+  animation: ec-spin 0.7s linear infinite;
+}
+
+/* --- (4) GALERIA DE ALTERNATIVAS DO INDICADOR DE ETAPAS --- */
+
+/* (a) Barra conectada: círculos numerados + trilho com preenchimento animado. */
+.ec-steps-trilho {
+  position: relative;
+  height: 3px;
+  border-radius: 9999px;
+  background: oklch(0.805 0.101 221 / 28%);
+}
+.ec-steps-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--navy), var(--accent));
+  width: var(--ec-steps-pct, 0%);
+  transition: width 0.45s cubic-bezier(0.16, 0.84, 0.44, 1);
+}
+.ec-step-dot {
+  display: grid;
+  place-items: center;
+  height: 1.75rem;
+  width: 1.75rem;
+  border-radius: 9999px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.8rem;
+  border: 2px solid oklch(0.805 0.101 221 / 45%);
+  background: var(--card);
+  color: var(--muted-foreground);
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease,
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ec-step-dot[data-estado="feito"] {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: var(--navy-foreground);
+}
+.ec-step-dot[data-estado="ativo"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-foreground);
+  transform: scale(1.12);
+  box-shadow: 0 0 0 4px oklch(0.705 0.192 41 / 16%);
+}
+
+/* (b) Sublinhado deslizante (estilo aba). Thumb posicionado por --ec-us-x/w. */
+.ec-underline-trilho { position: relative; }
+.ec-underline-base {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 2px;
+  border-radius: 9999px;
+  background: oklch(0.905 0.014 258);
+}
+.ec-underline-thumb {
+  position: absolute;
+  bottom: 0;
+  height: 3px;
+  border-radius: 9999px;
+  left: var(--ec-us-x, 0px);
+  width: var(--ec-us-w, 0px);
+  background: linear-gradient(90deg, var(--navy), var(--accent));
+  transition: left 0.34s cubic-bezier(0.16, 0.84, 0.44, 1),
+    width 0.34s cubic-bezier(0.16, 0.84, 0.44, 1);
+}
+
+/* (c) Breadcrumb compacto + fio fino de progresso. */
+.ec-bc-fio {
+  position: relative;
+  height: 2px;
+  border-radius: 9999px;
+  background: oklch(0.805 0.101 221 / 25%);
+  overflow: hidden;
+}
+.ec-bc-fio::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--ec-bc-pct, 0%);
+  background: linear-gradient(90deg, var(--sky), var(--accent));
+  transition: width 0.45s cubic-bezier(0.16, 0.84, 0.44, 1);
+}
+
+/* (d) Contador "Etapa N de M" + trilho fino. */
+.ec-contador-trilho {
+  position: relative;
+  height: 4px;
+  border-radius: 9999px;
+  background: oklch(0.905 0.014 258);
+  overflow: hidden;
+}
+.ec-contador-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--ec-ct-pct, 0%);
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--navy), var(--accent));
+  transition: width 0.45s cubic-bezier(0.16, 0.84, 0.44, 1);
+}
+
+/* Reduz movimento: as transições de posição/preenchimento somem (saltam direto
+   ao valor final), mas a posição final permanece legível. */
+.reduzir-mov .ec-tabs-thumb,
+.reduzir-mov .ec-tab-conteudo,
+.reduzir-mov .ec-upload-spin,
+.reduzir-mov .ec-steps-fill,
+.reduzir-mov .ec-step-dot,
+.reduzir-mov .ec-underline-thumb,
+.reduzir-mov .ec-bc-fio::after,
+.reduzir-mov .ec-contador-fill {
+  animation: none !important;
+  transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ec-tabs-thumb, .ec-tab-conteudo, .ec-upload-spin, .ec-steps-fill,
+  .ec-step-dot, .ec-underline-thumb, .ec-bc-fio::after, .ec-contador-fill {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ============================================================
+   ESTÚDIO — CONTEÚDO + ARTE · RODADA 3 de refino
+   Decisão do usuário: "vamos de D sem degradê! vamos de cor laranja principal!"
+   Regra aplicada aos INDICADORES DE ESTADO ATIVO: laranja #ff6d2d SÓLIDO,
+   sem gradiente/degradê. (A aurora da geração — momento de peso — pode manter
+   o movimento multicor; não é cromo de UI.)
+   ============================================================ */
+
+/* (D) Contador "Etapa N de M" — preenchimento SÓLIDO laranja (sem gradiente). */
+.ec-contador-fill-solido {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--ec-ct-pct, 0%);
+  border-radius: 9999px;
+  background: var(--accent); /* #ff6d2d sólido — sem degradê */
+  transition: width 0.45s cubic-bezier(0.16, 0.84, 0.44, 1);
+}
+
+/* Barra de abas de INSUMOS: o polegar (thumb) ativo é laranja SÓLIDO.
+   Reaproveita a estrutura .ec-tabs; só troca o preenchimento do thumb. */
+.ec-tabs-thumb-solido {
+  position: absolute;
+  top: 0.3rem;
+  bottom: 0.3rem;
+  left: var(--ec-tab-x, 0px);
+  width: var(--ec-tab-w, 0px);
+  border-radius: 0.7rem;
+  background: var(--accent); /* laranja sólido, sem gradiente */
+  box-shadow: 0 6px 16px -8px oklch(0.705 0.192 41 / 55%);
+  transition: left 0.32s cubic-bezier(0.16, 0.84, 0.44, 1),
+    width 0.32s cubic-bezier(0.16, 0.84, 0.44, 1);
+  pointer-events: none;
+  z-index: 0;
+}
+/* Aba sobre o thumb laranja sólido: texto branco quando ativa. */
+.ec-tab-solido[data-ativa="true"] {
+  color: var(--accent-foreground);
+}
+.ec-tab-solido:not([data-ativa="true"]) {
+  color: var(--muted-foreground);
+}
+.ec-tab-solido:hover:not([data-ativa="true"]) {
+  color: var(--navy);
+}
+
+/* Segmented control das 3 fontes de imagem (Upload/Gerar/Acervo).
+   Ativo = laranja sólido, texto branco. Sem gradiente. */
+.ec-seg {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 0.9rem;
+  background: oklch(0.945 0.012 255);
+  border: 1px solid var(--border);
+}
+.ec-seg-btn {
+  border: none;
+  cursor: pointer;
+  border-radius: 0.65rem;
+  padding: 0.45rem 0.4rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+  background: transparent;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.ec-seg-btn:hover[data-ativa="false"] {
+  color: var(--navy);
+}
+.ec-seg-btn[data-ativa="true"] {
+  background: var(--accent); /* laranja sólido */
+  color: var(--accent-foreground);
+  box-shadow: 0 6px 16px -8px oklch(0.705 0.192 41 / 50%);
+}
+
+/* Cartão de escolha de template (A/B/C). Selecionado = contorno laranja sólido. */
+.ec-template-card {
+  display: block;
+  text-align: left;
+  border-radius: 0.9rem;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  padding: 0.65rem 0.7rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+.ec-template-card:hover {
+  border-color: oklch(0.435 0.132 268 / 40%);
+}
+.ec-template-card[data-ativo="true"] {
+  border-color: var(--accent); /* laranja sólido */
+  box-shadow: 0 0 0 3px oklch(0.705 0.192 41 / 16%);
+}
+
+/* Chip numérico de prancheta (carrossel): selecionado = laranja sólido. */
+.ec-prancheta-chip {
+  display: grid;
+  place-items: center;
+  height: 1.5rem;
+  width: 1.5rem;
+  border-radius: 9999px;
+  border: 1.5px solid oklch(0.705 0.192 41 / 45%);
+  background: var(--card);
+  color: var(--navy);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+.ec-prancheta-chip[data-ativo="true"] {
+  background: var(--accent); /* laranja sólido */
+  border-color: var(--accent);
+  color: var(--accent-foreground);
+  transform: scale(1.06);
+}
+
+/* CTA "Gerar imagem com IA" — versão SÓLIDA laranja (substitui a .cta-ia com
+   gradiente azul→roxo→laranja). Mantém o brilho que desliza no hover (sutil),
+   mas o fundo é laranja chapado. */
+.ec-cta-ia-solido {
+  position: relative;
+  overflow: hidden;
+  background: var(--accent); /* #ff6d2d sólido */
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  box-shadow: 0 8px 24px -10px oklch(0.705 0.192 41 / 55%);
+}
+.ec-cta-ia-solido:hover {
+  transform: translateY(-2px);
+  background: oklch(0.66 0.19 38); /* laranja um tom mais fundo no hover */
+  box-shadow: 0 14px 34px -10px oklch(0.705 0.192 41 / 55%);
+}
+.ec-cta-ia-solido:active {
+  transform: translateY(0) scale(0.98);
+}
+.ec-cta-ia-solido::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 30%), transparent);
+  transform: translateX(-120%);
+}
+.ec-cta-ia-solido:hover::after {
+  animation: cta-ia-brilho 0.9s ease;
+}
+
+/* Redução de movimento: as transições de posição/preenchimento somem (saltam
+   direto ao valor final), posição final permanece legível. */
+.reduzir-mov .ec-contador-fill-solido,
+.reduzir-mov .ec-tabs-thumb-solido,
+.reduzir-mov .ec-seg-btn,
+.reduzir-mov .ec-template-card,
+.reduzir-mov .ec-prancheta-chip,
+.reduzir-mov .ec-cta-ia-solido {
+  transition: none !important;
+}
+.reduzir-mov .ec-cta-ia-solido::after,
+.reduzir-mov .ec-cta-ia-solido:hover { animation: none !important; }
+.reduzir-mov .ec-cta-ia-solido:hover { transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ec-contador-fill-solido,
+  .ec-tabs-thumb-solido,
+  .ec-seg-btn,
+  .ec-template-card,
+  .ec-prancheta-chip,
+  .ec-cta-ia-solido {
+    transition: none !important;
+  }
+  .ec-cta-ia-solido::after { animation: none !important; }
+  .ec-cta-ia-solido:hover { transform: none; }
+}
+
+/* ============================================================
+   ESTÚDIO — CONTEÚDO + ARTE · RODADA 4 de refino
+   Reshape do fluxo (3 passos: Contexto › Conteúdo › Revisar/Enviar) + gaveta de
+   personalização avançada OPCIONAL. Controles reaproveitados do ArteStep real:
+   pills Básico/Avançado, slider, presets, D-pad do logo, ColorHexInput.
+   Parecer da IA no passo Revisar. Tudo respeita .reduzir-mov + prefers-reduced-motion
+   e mantém laranja #ff6d2d sólido nos estados ativos.
+   ============================================================ */
+
+/* --- Pares de PILLS Básico/Avançado (nunca checkbox/switch solto). --- */
+.ec-pills {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border-radius: 9999px;
+  background: oklch(0.945 0.012 255);
+  border: 1px solid var(--border);
+}
+.ec-pill {
+  border: none;
+  cursor: pointer;
+  border-radius: 9999px;
+  padding: 0.3rem 0.9rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: var(--muted-foreground);
+  background: transparent;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+.ec-pill:hover[data-ativa="false"] { color: var(--navy); }
+.ec-pill[data-ativa="true"] {
+  background: var(--accent); /* laranja sólido */
+  color: var(--accent-foreground);
+  box-shadow: 0 4px 12px -6px oklch(0.705 0.192 41 / 55%);
+}
+
+/* --- Botão de preset (posição do texto, tamanho do logo, direção do degradê).
+   Selecionado = contorno/fundo laranja sólido. --- */
+.ec-preset-btn {
+  display: grid;
+  place-items: center;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  border-radius: 0.7rem;
+  padding: 0.5rem 0.4rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--navy);
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+.ec-preset-btn:hover[data-ativo="false"] { border-color: oklch(0.435 0.132 268 / 40%); }
+.ec-preset-btn[data-ativo="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+/* --- Grade de presets de posição do logo (3x3). --- */
+.ec-logo-preset {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  border-radius: 0.6rem;
+  font-size: 1rem;
+  color: var(--navy);
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+.ec-logo-preset:hover[data-ativo="false"] { border-color: oklch(0.435 0.132 268 / 40%); }
+.ec-logo-preset[data-ativo="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+/* --- D-pad de mover o logo (Shift = fino). Botões em cruz. --- */
+.ec-dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 2.25rem);
+  grid-template-rows: repeat(3, 2.25rem);
+  gap: 0.25rem;
+}
+.ec-dpad-btn {
+  display: grid;
+  place-items: center;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  border-radius: 0.6rem;
+  font-size: 1rem;
+  color: var(--navy);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.12s ease;
+}
+.ec-dpad-btn:hover { border-color: oklch(0.705 0.192 41 / 50%); }
+.ec-dpad-btn:active { transform: scale(0.92); background: var(--secondary); }
+
+/* --- Slider de tamanho (tipografia / posição avançada). Trilho sky, polegar
+   laranja sólido. Estável, sem layout shift. --- */
+.ec-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: oklch(0.805 0.101 221 / 30%);
+  outline: none;
+  cursor: pointer;
+}
+.ec-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 18px;
+  width: 18px;
+  border-radius: 9999px;
+  background: var(--accent); /* laranja sólido */
+  border: 2px solid var(--card);
+  box-shadow: 0 2px 6px -1px oklch(0.705 0.192 41 / 55%);
+}
+.ec-slider::-moz-range-thumb {
+  height: 18px;
+  width: 18px;
+  border-radius: 9999px;
+  background: var(--accent);
+  border: 2px solid var(--card);
+  box-shadow: 0 2px 6px -1px oklch(0.705 0.192 41 / 55%);
+}
+
+/* --- GAVETA de ajustes avançados: desliza da direita. Scroll próprio no
+   conteúdo; cabeçalho e rodapé ancorados. --- */
+@keyframes ec-gaveta-in {
+  0%   { transform: translateX(100%); }
+  100% { transform: translateX(0); }
+}
+@keyframes ec-gaveta-backdrop-in {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+.ec-gaveta {
+  animation: ec-gaveta-in 0.3s cubic-bezier(0.16, 0.84, 0.44, 1);
+}
+.ec-gaveta-backdrop {
+  animation: ec-gaveta-backdrop-in 0.3s ease;
+}
+.ec-gaveta.reduzir-mov,
+.ec-gaveta-backdrop.reduzir-mov {
+  animation: none !important;
+}
+
+/* --- Prontidão de marca (Parecer da IA): trilho + preenchimento. Laranja/verde
+   sólido conforme o veredito. --- */
+.ec-prontidao-trilho {
+  position: relative;
+  height: 6px;
+  border-radius: 9999px;
+  background: oklch(0.905 0.014 258);
+  overflow: hidden;
+}
+.ec-prontidao-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--ec-pr-pct, 0%);
+  border-radius: 9999px;
+  background: var(--success);
+  transition: width 0.5s cubic-bezier(0.16, 0.84, 0.44, 1);
+}
+.ec-prontidao-fill-atencao {
+  background: var(--warning);
+}
+
+/* Redução de movimento: transições de posição/preenchimento somem (saltam ao
+   valor final), posição final permanece legível. */
+.reduzir-mov .ec-pill,
+.reduzir-mov .ec-preset-btn,
+.reduzir-mov .ec-logo-preset,
+.reduzir-mov .ec-dpad-btn,
+.reduzir-mov .ec-prontidao-fill {
+  transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ec-gaveta, .ec-gaveta-backdrop { animation: none !important; }
+  .ec-pill,
+  .ec-preset-btn,
+  .ec-logo-preset,
+  .ec-dpad-btn,
+  .ec-prontidao-fill {
+    transition: none !important;
+  }
+}
+
+/* ============================================================
+   ESTÚDIO — CONTEÚDO + ARTE · RODADA 5 de refino
+   Stepper minimalista (linha fina), seletor de estilo reposicionado (segmented),
+   seletor de formato Feed/Story. Tudo laranja #ff6d2d sólido no ativo, layout
+   estável, respeitando .reduzir-mov + prefers-reduced-motion.
+   ============================================================ */
+
+/* --- Stepper MINIMALISTA: trilho fino + preenchimento laranja sólido. --- */
+.ec-mini-trilho {
+  position: relative;
+  height: 4px;
+  border-radius: 9999px;
+  background: oklch(0.805 0.101 221 / 24%);
+  overflow: hidden;
+}
+.ec-mini-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--ec-mini-pct, 0%);
+  border-radius: 9999px;
+  background: var(--accent); /* laranja #ff6d2d sólido, sem degradê */
+  transition: width 0.45s cubic-bezier(0.16, 0.84, 0.44, 1);
+}
+
+/* --- Seletor de ESTILO da arte (A/B/C) — segmented control reposicionado. --- */
+.ec-estilo-seg {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.3rem;
+  padding: 0.3rem;
+  border-radius: 1rem;
+  background: oklch(0.945 0.012 255);
+  border: 1px solid var(--border);
+}
+.ec-estilo-btn {
+  display: grid;
+  place-items: center;
+  border: 1.5px solid transparent;
+  background: var(--card);
+  border-radius: 0.7rem;
+  padding: 0.5rem 0.4rem;
+  color: var(--navy);
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+.ec-estilo-btn:hover[data-ativo="false"] { border-color: oklch(0.435 0.132 268 / 35%); }
+.ec-estilo-btn[data-ativo="true"] {
+  background: var(--accent); /* laranja sólido */
+  border-color: var(--accent);
+  color: var(--accent-foreground);
+}
+
+/* --- Seletor de FORMATO Feed/Story. Ativo = laranja sólido. --- */
+.ec-formato-seg {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border-radius: 9999px;
+  background: oklch(0.945 0.012 255);
+  border: 1px solid var(--border);
+}
+.ec-formato-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: none;
+  cursor: pointer;
+  border-radius: 9999px;
+  padding: 0.3rem 0.8rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.72rem;
+  color: var(--muted-foreground);
+  background: transparent;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+.ec-formato-btn:hover[data-ativo="false"] { color: var(--navy); }
+.ec-formato-btn[data-ativo="true"] {
+  background: var(--accent); /* laranja sólido */
+  color: var(--accent-foreground);
+}
+
+/* Redução de movimento: posição final permanece legível. */
+.reduzir-mov .ec-mini-fill,
+.reduzir-mov .ec-estilo-btn,
+.reduzir-mov .ec-formato-btn {
+  transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ec-mini-fill,
+  .ec-estilo-btn,
+  .ec-formato-btn {
+    transition: none !important;
+  }
+}
+
+/* ============================================================
+   RODADA 6 — ZONAS DO SELETOR DE FONTE IN-FRAME (o quadro vazio é a fonte).
+   Três zonas grandes (Upload / Gerar / Acervo) preenchendo o quadro da prévia.
+   Cartão claro translúcido sobre o fundo esmaecido da arte, para parecer que a
+   escolha vive DENTRO da futura arte. Hover sutil; ativo/destaque = borda laranja.
+   ============================================================ */
+.ec-zona {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  height: 100%;
+  padding: 0.5rem 0.85rem;
+  border-radius: 1rem;
+  border: 1.5px solid oklch(1 0 0 / 55%);
+  background: oklch(1 0 0 / 86%);
+  box-shadow: 0 6px 18px -12px oklch(0.2 0.03 260 / 55%);
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
+}
+.ec-zona:hover {
+  border-color: oklch(0.435 0.132 268 / 45%);
+  background: oklch(1 0 0 / 96%);
+  transform: translateY(-1px);
+}
+.ec-zona-destaque {
+  border-color: var(--accent); /* laranja sólido — a ação de IA é a protagonista */
+  background: oklch(1 0 0 / 92%);
+}
+.ec-zona-destaque:hover {
+  border-color: var(--accent);
+}
+.ec-zona-icone {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  border-radius: 0.85rem;
+  background: oklch(0.805 0.101 221 / 18%);
+}
+
+.reduzir-mov .ec-zona { transition: none !important; }
+.reduzir-mov .ec-zona:hover { transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .ec-zona { transition: none !important; }
+  .ec-zona:hover { transform: none; }
+}
+
+/* ============================================================
+   Est�dio � Vis�o final em produ��o (aba estudio-final). Prefixo ef-.
+   PROT�TIPO DESCART�VEL � n�o � o app. N�o altera nenhuma regra ec-*.
+   ============================================================ */
+.ef-shell { overflow-x: clip; }
+.ef-main { overflow-x: clip; }
+@keyframes ef-shimmer { 0% { background-position: 120% 0; } 100% { background-position: -120% 0; } }
+.ef-shimmer {
+  background: linear-gradient(100deg, var(--secondary) 30%, color-mix(in oklab, var(--sky) 28%, white) 50%, var(--secondary) 70%);
+  background-size: 220% 100%;
+  animation: ef-shimmer 1.3s ease-in-out infinite;
+}
+@keyframes ef-fade { from { opacity: 0; } to { opacity: 1; } }
+.ef-fade { animation: ef-fade 0.2s ease-out both; }
+@keyframes ef-gaveta-in { from { transform: translateX(32px); opacity: 0.4; } to { transform: translateX(0); opacity: 1; } }
+.ef-gaveta { animation: ef-gaveta-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes ef-pop { 0% { transform: scale(0.96); } 60% { transform: scale(1.03); } 100% { transform: scale(1); } }
+.ef-pop:active { animation: ef-pop 0.2s ease-out; }
+@media (max-width: 768px) {
+  .ef-gaveta { max-width: 100vw !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ef-shimmer, .ef-fade, .ef-gaveta, .ef-pop:active { animation: none; }
+}
+
+/* ============================================================
+   estudio-final · refino pós-feedback 2 (2026-11-04)
+   PROTÓTIPO DESCARTÁVEL — não é o app. Só classes ef-*; nenhuma regra ec-* alterada.
+   ============================================================ */
+
+/* Gerando a imagem: fundo claro e calmo (sky/navy suaves, sem aurora multicolor). */
+.ef-gerando {
+  background:
+    radial-gradient(120% 75% at 50% 32%, #ffffff 0%, color-mix(in oklab, #67cfee 14%, white) 52%, color-mix(in oklab, #36499b 11%, white) 100%);
+}
+@keyframes ef-halo { 0%, 100% { transform: scale(0.92); opacity: 0.55; } 50% { transform: scale(1.06); opacity: 0.9; } }
+.ef-gerando-halo {
+  background: radial-gradient(circle, color-mix(in oklab, #67cfee 38%, transparent) 0%, color-mix(in oklab, #67cfee 10%, transparent) 55%, transparent 72%);
+  animation: ef-halo 3.4s ease-in-out infinite;
+}
+
+/* Troca de frase de status (entra de baixo, curta). */
+@keyframes ef-status-troca { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.ef-status-troca { animation: ef-status-troca 0.32s ease-out both; }
+
+/* Entrada escalonada de itens (miniaturas, itens do parecer). O atraso vem do style inline. */
+@keyframes ef-entra { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.ef-entra { animation: ef-entra 0.34s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Superfície larga de escolha: abaixo de lg sobe como tela inteira; em lg+ “cresce” da coluna da arte
+   para a esquerda (recorte que abre), sem mexer no layout da página. */
+@keyframes ef-amplia-sobe { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes ef-amplia-abre {
+  from { clip-path: inset(0 0 0 52% round 1.5rem); opacity: 0.6; }
+  to   { clip-path: inset(0 0 0 0 round 1.5rem); opacity: 1; }
+}
+.ef-amplia { animation: ef-amplia-sobe 0.26s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@media (min-width: 1024px) {
+  .ef-amplia { animation: ef-amplia-abre 0.34s cubic-bezier(0.22, 1, 0.36, 1) both; }
+}
+
+/* Linha rolável sem barra visível (termos sugeridos do acervo). */
+.ef-sem-barra { scrollbar-width: none; }
+.ef-sem-barra::-webkit-scrollbar { display: none; }
+
+/* Botões de continuidade: leve elevação + sombra no hover; a seta avança. */
+.ef-continuar {
+  box-shadow: 0 1px 2px oklch(0.435 0.132 268 / 8%), 0 10px 22px -10px oklch(0.435 0.132 268 / 40%);
+  transition: transform 0.18s ease-out, box-shadow 0.18s ease-out, filter 0.18s ease-out;
+}
+.ef-continuar:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px oklch(0.435 0.132 268 / 10%), 0 16px 30px -12px oklch(0.435 0.132 268 / 50%);
+  filter: brightness(1.04);
+}
+.ef-continuar:not(:disabled):active { transform: translateY(0); }
+.ef-continuar-seta { transition: transform 0.2s ease-out, background-color 0.2s ease-out; }
+.ef-continuar:not(:disabled):hover .ef-continuar-seta { transform: translateX(3px); background-color: rgb(255 255 255 / 0.28); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ef-gerando-halo, .ef-status-troca, .ef-entra, .ef-amplia { animation: none !important; }
+  .ef-continuar, .ef-continuar-seta { transition: none; }
+  .ef-continuar:not(:disabled):hover, .ef-continuar:not(:disabled):hover .ef-continuar-seta { transform: none; }
+}
+
+/* ==========================================================================
+   Escrever com a IA (componente 07 adaptado) - prefixo ia-w-
+   Portado de Arquivos_temporarios_for_AI/digisystem-loading-buttons/src/styles/loading-buttons.css
+   (classes dg- -> ia-w-). Cores = marca ATUAL do Hub, nao os tokens do "rebrand 2026".
+   Decisao: docs-marketing-hub/implementacao/pacote-refino-ux-estudio.md
+   ========================================================================== */
+:root {
+  /* Preenchimento do botao: mesmo matiz do laranja da marca (#ff6d2d), mais escuro para o texto branco ler.
+     Para voltar ao laranja da marca, troque so esta linha. */
+  --ia-w-btn: #e2561a;
+  --ia-w-orange: #ff6d2d;   /* tracos de progresso e acentos */
+  --ia-w-sky: #67cfee;      /* foco / anel */
+  --ia-w-blue: #36499b;     /* Reflex Blue */
+  --ia-w-navy: #1f2a44;     /* navy escuro ja usado no prototipo (estado de sucesso, pilula de %) */
+  --ia-w-navy-rgb: 31, 42, 68;
+  --ia-w-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ia-w-ease-io: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* Base do botao: hover, toque e foco (sem hover/active quando ocupado ou bloqueado) */
+.ia-w-btn {
+  position: relative;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 6px 16px rgba(226, 86, 26, 0.28);
+  transition: transform 160ms var(--ia-w-ease), box-shadow 240ms ease, background-color 320ms ease;
+}
+.ia-w-btn:not(:disabled):not([aria-disabled="true"]):hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(226, 86, 26, 0.34); }
+.ia-w-btn:not(:disabled):not([aria-disabled="true"]):active { transform: scale(0.98); box-shadow: none; }
+.ia-w-btn:focus-visible { outline: 3px solid var(--ia-w-sky); outline-offset: 4px; }
+.ia-w-btn[aria-disabled="true"] { cursor: progress; }
+.ia-w-btn:disabled { cursor: not-allowed; opacity: 0.55; box-shadow: none; }
+
+/* Troca de rotulo (entra subindo e desfocando) */
+@keyframes ia-w-in { from { opacity: 0; transform: translateY(8px); filter: blur(4px); } to { opacity: 1; transform: none; filter: blur(0); } }
+.ia-w-in { animation: ia-w-in 280ms var(--ia-w-ease) both; }
+@keyframes ia-w-pop { 0% { opacity: 0; transform: scale(0.5); } 70% { transform: scale(1.08); } 100% { opacity: 1; transform: scale(1); } }
+.ia-w-pop { animation: ia-w-pop 340ms var(--ia-w-ease) both; }
+@keyframes ia-w-msg { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.ia-w-msg { animation: ia-w-msg 260ms ease-out both; }
+
+/* Spinner do item ativo do checklist */
+@keyframes ia-w-rot { to { transform: rotate(360deg); } }
+@keyframes ia-w-arc {
+  0% { stroke-dasharray: 1 150; stroke-dashoffset: 0; }
+  50% { stroke-dasharray: 90 150; stroke-dashoffset: -35; }
+  100% { stroke-dasharray: 90 150; stroke-dashoffset: -124; }
+}
+.ia-w-spinner { animation: ia-w-rot 1.4s linear infinite; }
+.ia-w-spinner .arc { animation: ia-w-arc 1.4s ease-in-out infinite; }
+
+/* Check desenhado */
+@keyframes ia-w-draw { to { stroke-dashoffset: 0; } }
+.ia-w-check path { stroke-dasharray: 24; stroke-dashoffset: 24; animation: ia-w-draw 400ms 80ms var(--ia-w-ease-io) forwards; }
+
+/* Feedback de estado */
+@keyframes ia-w-ping-navy { 0% { box-shadow: 0 0 0 0 rgba(var(--ia-w-navy-rgb), 0.4); } 100% { box-shadow: 0 0 0 18px rgba(var(--ia-w-navy-rgb), 0); } }
+.ia-w-ping-navy { animation: ia-w-ping-navy 800ms ease-out; box-shadow: 0 6px 16px rgba(var(--ia-w-navy-rgb), 0.28); }
+@keyframes ia-w-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+.ia-w-shake { animation: ia-w-shake 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+
+/* Progresso na borda: traco de PROGRESSO (nao e indicador de "ativo" da UI) */
+.ia-w-trace { filter: drop-shadow(0 0 5px rgba(103, 207, 238, 0.75)); transition: stroke-dasharray 220ms linear; }
+@keyframes ia-w-ring-out { 0%, 55% { opacity: 1; } 100% { opacity: 0; } }
+.ia-w-ring-out { animation: ia-w-ring-out 1.4s ease-out forwards; }
+
+/* Seta da direita avanca no hover */
+.ia-w-arrow { display: inline-block; transition: transform 220ms var(--ia-w-ease); }
+.ia-w-btn:not(:disabled):hover .ia-w-arrow { transform: translateX(5px); }
+
+/* Simbolo folha + cursor (mock v2): repouso = cursor pisca; hover = linhas se redesenham;
+   ocupado (aria-busy) = linhas se desenham sem parar e o cursor anda */
+.ia-w-folha .borda { fill: none; stroke: var(--ia-w-blue); stroke-width: 2; }
+.ia-w-folha .l { stroke: var(--ia-w-btn); stroke-width: 2.6; stroke-linecap: round; stroke-dasharray: 20; stroke-dashoffset: 0; }
+.ia-w-folha .cursor { fill: var(--ia-w-blue); animation: ia-w-pisca 1.1s steps(1) infinite; }
+.ia-w-btn:not(:disabled):hover .ia-w-folha .l { animation: ia-w-escreve 0.9s ease-out both; }
+.ia-w-btn:not(:disabled):hover .ia-w-folha .l2 { animation-delay: 0.15s; }
+.ia-w-btn:not(:disabled):hover .ia-w-folha .l3 { animation-delay: 0.3s; }
+.ia-w-btn[aria-busy="true"] .ia-w-folha .l { animation: ia-w-escreve 1.2s ease-in-out infinite; }
+.ia-w-btn[aria-busy="true"] .ia-w-folha .l2 { animation-delay: 0.25s; }
+.ia-w-btn[aria-busy="true"] .ia-w-folha .l3 { animation-delay: 0.5s; }
+.ia-w-btn[aria-busy="true"] .ia-w-folha .cursor { animation: ia-w-anda 1.2s ease-in-out infinite; }
+@keyframes ia-w-escreve { 0% { stroke-dashoffset: 20; } 60%, 100% { stroke-dashoffset: 0; } }
+@keyframes ia-w-pisca { 50% { opacity: 0; } }
+@keyframes ia-w-anda {
+  0% { transform: translate(-10px, -8px); }
+  33% { transform: translate(-4px, -8px); }
+  50% { transform: translate(-10px, 0); }
+  83% { transform: translate(-2px, 0); }
+  100% { transform: translate(-10px, 8px); }
+}
+
+/* Movimento reduzido: sem deslocamento nem animacao continua; cursor fica visivel e parado */
+@keyframes ia-w-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .ia-w-btn, .ia-w-btn:hover, .ia-w-btn:active, .ia-w-arrow, .ia-w-btn:hover .ia-w-arrow { transition: none; transform: none !important; }
+  .ia-w-in, .ia-w-pop, .ia-w-msg { animation: ia-w-fade 200ms both; }
+  .ia-w-spinner { animation-duration: 3s; }
+  .ia-w-spinner .arc { animation: none; stroke-dasharray: 60 150; }
+  .ia-w-shake, .ia-w-ping-navy { animation: none; }
+  .ia-w-folha .cursor, .ia-w-folha .l,
+  .ia-w-btn:hover .ia-w-folha .l, .ia-w-btn[aria-busy="true"] .ia-w-folha .l,
+  .ia-w-btn[aria-busy="true"] .ia-w-folha .cursor { animation: none !important; transform: none; }
+  .ia-w-trace { transition: none; filter: none; }
+  .ia-w-ring-out { animation-duration: 1ms; }
+  .ia-w-check path { animation-duration: 1ms; animation-delay: 0ms; }
+}
