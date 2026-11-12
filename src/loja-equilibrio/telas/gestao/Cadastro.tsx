@@ -53,7 +53,7 @@ function FormularioBrinde({ inicial, onFechar: aoFechar }: { inicial: Brinde; on
 
   const salvar = () => {
     const pronto: Brinde = personalizavel
-      ? { ...b, custoUnitario: null, quantidadeMinima: b.quantidadeMinima, prazoExtraDiasUteis: b.prazoExtraDiasUteis ?? 0 }
+      ? { ...b, custoUnitario: null, prazoExtraDiasUteis: b.prazoExtraDiasUteis ?? 0 }
       : { ...b, custoUnitario: custo.trim() === "" ? null : Number(custo.replace(",", ".")) };
     const r = loja.salvarBrinde(pronto);
     if (r.ok) onFechar();
@@ -108,7 +108,6 @@ function FormularioBrinde({ inicial, onFechar: aoFechar }: { inicial: Brinde; on
                     setB({
                       ...b,
                       tipo: t,
-                      quantidadeMinima: t === "personalizavel" ? (b.quantidadeMinima ?? 20) : undefined,
                       prazoExtraDiasUteis: t === "personalizavel" ? (b.prazoExtraDiasUteis ?? 5) : undefined,
                     })
                   }
@@ -156,15 +155,6 @@ function FormularioBrinde({ inicial, onFechar: aoFechar }: { inicial: Brinde; on
 
         {personalizavel ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            <Campo rotulo="Quantidade mínima" dica="O diretor só pede a partir desta quantidade.">
-              <input
-                type="number"
-                min={1}
-                value={b.quantidadeMinima ?? ""}
-                onChange={(e) => setB({ ...b, quantidadeMinima: e.target.value === "" ? undefined : Number(e.target.value) })}
-                className={CAMPO}
-              />
-            </Campo>
             <Campo rotulo="Prazo extra (dias úteis)" dica="Soma ao prazo mínimo da data desejada.">
               <input
                 type="number"

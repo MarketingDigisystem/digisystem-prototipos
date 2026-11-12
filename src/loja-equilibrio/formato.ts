@@ -11,13 +11,14 @@ export function brl(valor: number): string {
   return MOEDA.format(valor);
 }
 
+/** Fonte única do texto exibido de cada estado de pedido. Os identificadores (chaves) não mudam. */
 export const ROTULO_ESTADO: Record<EstadoPedido, string> = {
-  solicitada: "Solicitada",
-  em_alinhamento: "Em alinhamento",
+  solicitada: "Recebido",
+  em_alinhamento: "Em preparação",
   pronto: "Pronto para retirada",
-  encerrada: "Encerrada",
-  recusada: "Recusada",
-  cancelada: "Cancelada",
+  encerrada: "Retirado",
+  recusada: "Recusado",
+  cancelada: "Cancelado",
 };
 
 export const ROTULO_SUGESTAO: Record<EstadoSugestao, string> = {
@@ -26,6 +27,12 @@ export const ROTULO_SUGESTAO: Record<EstadoSugestao, string> = {
   aprovada: "Aprovada",
   recusada: "Recusada",
 };
+
+/** Monta o caminho de um arquivo de public/digistore/ respeitando a base do Pages. */
+export function urlDoAsset(nome: string, base: string): string {
+  const b = base.endsWith("/") ? base : `${base}/`;
+  return `${b}digistore/${nome.replace(/^\/+/, "")}`;
+}
 
 /** "2026-11-11T10:00:00" → "11/11/2026". */
 export function dataCurta(iso: string): string {

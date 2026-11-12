@@ -35,8 +35,6 @@ export interface Brinde {
   custoUnitario: number | null;
   variacoes: Variacao[];
   /** Só no Personalizável. */
-  quantidadeMinima?: number;
-  /** Só no Personalizável. */
   prazoExtraDiasUteis?: number;
   opcoesPersonalizacao?: OpcaoPersonalizacao[];
   novidade: boolean;

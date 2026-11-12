@@ -38,7 +38,7 @@ export function Revisao() {
           <CheckCircle2 className="le-pop mx-auto size-10 text-[color:var(--success-strong)]" aria-hidden />
           <h1 className="mt-3 font-display text-3xl font-bold text-navy">Pedido enviado</h1>
           <p className="mt-2 text-sm text-foreground/85">
-            O pedido {criado.id} está em Solicitada. O Marketing entra em contato se precisar alinhar algum detalhe.
+            O pedido {criado.id} foi recebido pelo Marketing. O Marketing entra em contato se precisar alinhar algum detalhe.
           </p>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
             <a href={href("pedidos")} className={BOTAO_PRIMARIO}>

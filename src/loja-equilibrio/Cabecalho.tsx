@@ -9,6 +9,7 @@
 // Ativo muda só cor e anel (box-shadow), nunca peso, borda ou tamanho.
 
 import { ClipboardList, Lightbulb, ShoppingBag } from "lucide-react";
+import { LogoDigiStore } from "./LogoDigiStore";
 import { alertasMinimo, esgotados } from "./regras";
 import { href, navegar, type AbaGestao, type RotaAtual } from "./rota";
 import { useLoja, type Visao } from "./store";
@@ -93,9 +94,8 @@ export function Cabecalho({ rota }: { rota: RotaAtual }) {
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         {/* Linha 1: marca à esquerda; Sugira e Carrinho na extremidade direita, larguras fixas. */}
         <div className="flex h-14 items-center justify-between gap-3 lg:h-16">
-          <a href={href("")} className="flex h-11 w-[132px] shrink-0 items-center" aria-label="Digi Store, início">
-            <span className="font-display text-2xl font-bold leading-none tracking-tight text-navy">Digi Store</span>
-            <span className="ml-1 mt-2 size-1.5 shrink-0 rounded-full bg-accent" aria-hidden />
+          <a href={href("")} className="flex h-11 shrink-0 items-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]">
+            <LogoDigiStore />
           </a>
 
           <div className="flex shrink-0 items-center gap-1">

@@ -8,17 +8,18 @@
 // quando o estado muda, cor, fundo e anel das etapas fazem transição (sem mexer no tamanho).
 
 import { Check } from "lucide-react";
+import { ROTULO_ESTADO } from "../../formato";
 import { estiloEntrada } from "../../movimento";
 import type { EstadoPedido, Evento } from "../../tipos";
 
 const ETAPAS: { estado: EstadoPedido; titulo: string; frase: string }[] = [
-  { estado: "solicitada", titulo: "Solicitada", frase: "O Marketing recebe o pedido e reserva os brindes de estoque." },
-  { estado: "em_alinhamento", titulo: "Em alinhamento", frase: "O Marketing confere detalhes e, se for personalizado, informa o valor." },
-  { estado: "pronto", titulo: "Pronto para retirada", frase: "O pedido está separado e esperando você." },
-  { estado: "encerrada", titulo: "Encerrada", frase: "Retirada confirmada e estoque baixado." },
+  { estado: "solicitada", titulo: ROTULO_ESTADO.solicitada, frase: "O Marketing recebe o pedido e reserva os brindes de estoque." },
+  { estado: "em_alinhamento", titulo: ROTULO_ESTADO.em_alinhamento, frase: "O Marketing confere detalhes e, se for personalizado, informa o valor." },
+  { estado: "pronto", titulo: ROTULO_ESTADO.pronto, frase: "O pedido está separado e esperando você." },
+  { estado: "encerrada", titulo: ROTULO_ESTADO.encerrada, frase: "Retirada confirmada e estoque baixado." },
 ];
 
-/** Posição da última etapa alcançada (0 a 3); -1 se nenhuma. Recusada e cancelada param onde estavam. */
+/** Posição da última etapa alcançada (0 a 3); -1 se nenhuma. Recusado e cancelado param onde estavam. */
 function alcancada(atual: EstadoPedido | undefined, historico: Evento[] | undefined): number {
   if (!atual) return -1;
   const idx = ETAPAS.findIndex((e) => e.estado === atual);

@@ -8,6 +8,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { Cabecalho } from "./Cabecalho";
 import { CarrinhoPainel } from "./CarrinhoPainel";
+import { urlDoAsset } from "./formato";
 import { href, useRota, type Tela } from "./rota";
 import { Gestao } from "./telas/gestao/Gestao";
 import { PaginaBrinde } from "./telas/solicitante/PaginaBrinde";
@@ -47,6 +48,7 @@ function Corpo({ t }: { t: Tela }) {
     default:
       return (
         <Placeholder titulo="Página não encontrada" texto="Esse endereço não existe na Digi Store.">
+          <img src={urlDoAsset("icone.png", import.meta.env.BASE_URL)} alt="" className="mt-5 block size-12" width={48} height={48} />
           <a href={href("")} className="mt-5 inline-flex h-11 items-center rounded-full bg-navy px-5 font-display text-sm font-bold text-navy-foreground">
             Ver brindes
           </a>

@@ -33,10 +33,10 @@ import {
 type Filtro = "todos" | EstadoPedido;
 const FILTROS: { id: Filtro; rotulo: string }[] = [
   { id: "todos", rotulo: "Todos" },
-  { id: "solicitada", rotulo: "Solicitadas" },
-  { id: "em_alinhamento", rotulo: "Em alinhamento" },
+  { id: "solicitada", rotulo: "Recebidos" },
+  { id: "em_alinhamento", rotulo: ROTULO_ESTADO.em_alinhamento },
   { id: "pronto", rotulo: "Prontos" },
-  { id: "encerrada", rotulo: "Encerrados" },
+  { id: "encerrada", rotulo: "Retirados" },
   { id: "recusada", rotulo: "Recusados" },
   { id: "cancelada", rotulo: "Cancelados" },
 ];
@@ -169,9 +169,9 @@ function Detalhe({ pedido, onFechar }: { pedido: Pedido; onFechar: () => void })
 
   const principal = alvos.find((a) => a === "em_alinhamento" || a === "pronto" || a === "encerrada");
   const ROTULO_ACAO: Partial<Record<EstadoPedido, string>> = {
-    em_alinhamento: "Colocar em alinhamento",
+    em_alinhamento: "Colocar em preparação",
     pronto: "Pronto para retirada",
-    encerrada: "Encerrar",
+    encerrada: "Confirmar retirada",
     recusada: "Recusar",
     cancelada: "Cancelar pedido",
   };

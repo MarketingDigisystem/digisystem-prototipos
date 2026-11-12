@@ -81,19 +81,19 @@ const BRINDES_BASE: Brinde[] = [
     foto: "/brindes/camiseta.png",
     descricao: "Camiseta de algodão com a sua estampa. O Marketing avalia o valor conforme a quantidade e envia o orçamento antes da produção.",
     custoUnitario: null, variacoes: [v("p", "P", 0), v("m", "M", 0), v("g", "G", 0), v("gg", "GG", 0)],
-    quantidadeMinima: 20, prazoExtraDiasUteis: 7, opcoesPersonalizacao: ["logo", "nome", "texto"], novidade: true, ativo: true,
+    prazoExtraDiasUteis: 7, opcoesPersonalizacao: ["logo", "nome", "texto"], novidade: true, ativo: true,
   },
   {
     id: "ecobag", slug: "ecobag-personalizada", nome: "Ecobag personalizada", tipo: "personalizavel", categoria: "Vestuário",
     foto: "/brindes/ecobag.png", descricao: "Ecobag de algodão cru com logo ou texto. Valor avaliado pelo Marketing conforme a quantidade.",
     custoUnitario: null, variacoes: [v("unica", "Única", 0)],
-    quantidadeMinima: 50, prazoExtraDiasUteis: 5, opcoesPersonalizacao: ["logo", "texto"], novidade: false, ativo: true,
+    prazoExtraDiasUteis: 5, opcoesPersonalizacao: ["logo", "texto"], novidade: false, ativo: true,
   },
   {
     id: "chaveiro", slug: "chaveiro-gravado", nome: "Chaveiro gravado", tipo: "personalizavel", categoria: "Acessórios",
     foto: "/brindes/chaveiro.png", descricao: "Chaveiro de couro com argola de metal, gravado com logo ou nome.",
     custoUnitario: null, variacoes: [v("unico", "Único", 0)],
-    quantidadeMinima: 30, prazoExtraDiasUteis: 5, opcoesPersonalizacao: ["logo", "nome"], novidade: false, ativo: true,
+    prazoExtraDiasUteis: 5, opcoesPersonalizacao: ["logo", "nome"], novidade: false, ativo: true,
   },
 ];
 
@@ -162,7 +162,7 @@ const CAMINHO_ENCERRADO = (quem: string, criada: string, alinh: string, pronta: 
   evs(quem, [["solicitada", criada], ["em_alinhamento", alinh], ["pronto", pronta], ["encerrada", fim]]);
 
 const PEDIDOS: Pedido[] = [
-  // Encerrados em outubro e novembro (entram no gasto calculado).
+  // Retirados em outubro e novembro (entram no gasto calculado).
   pedido("P-901", "d1", "Visita a cliente em Curitiba", "encerrada",
     [lin("caneca", "branca", 20), lin("garrafa", "preta", 10)],
     CAMINHO_ENCERRADO("d1", "2026-10-05T09:10:00", "2026-10-05T15:00:00", "2026-10-07T10:00:00", "2026-10-09T11:20:00")),
@@ -220,7 +220,7 @@ const PEDIDOS: Pedido[] = [
     evs("d5", [["solicitada", "2026-11-06T09:00:00"], ["cancelada", "2026-11-07T10:00:00", "Evento adiado para o próximo mês."]])),
 ];
 
-/** Cada pedido encerrado gera as saídas de estoque das suas linhas de estoque. */
+/** Cada pedido retirado gera as saídas de estoque das suas linhas de estoque. */
 const MOVS_SAIDA: Movimentacao[] = PEDIDOS.filter((p) => p.estado === "encerrada").flatMap((p) => {
   const fim = p.historico.find((h) => h.estado === "encerrada")!.em;
   return p.linhas

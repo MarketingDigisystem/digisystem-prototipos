@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
+import { ROTULO_ESTADO } from "../../formato";
 import type { EstadoPedido, Urgencia } from "../../tipos";
 import { Msg, useArmadilhaFoco } from "../../ui";
 
@@ -23,14 +24,8 @@ export const BTN_LARANJA =
 export const BTN_SECUNDARIO =
   "inline-flex h-11 items-center justify-center rounded-full border bg-card px-5 font-display text-sm font-bold text-navy le-btn hover:bg-navy-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)] disabled:opacity-50";
 
-export const ROTULO_ESTADO: Record<EstadoPedido, string> = {
-  solicitada: "Solicitada",
-  em_alinhamento: "Em alinhamento",
-  pronto: "Pronto para retirada",
-  encerrada: "Encerrada",
-  recusada: "Recusada",
-  cancelada: "Cancelada",
-};
+/** Reexporta o mapa único de formato.ts; não redefinir aqui. */
+export { ROTULO_ESTADO };
 
 const COR_ESTADO: Record<EstadoPedido, string> = {
   solicitada: "bg-sky-soft text-navy ring-1 ring-sky",

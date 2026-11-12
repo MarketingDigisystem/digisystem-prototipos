@@ -6,11 +6,12 @@
 // Exemplos básicos. As propriedades ficam para as tarefas 2.2 a 2.10.
 
 import { describe, expect, it } from "vitest";
+import { ROTULO_ESTADO } from "./formato";
 import { ESTADO_INICIAL, HOJE } from "./mock";
 import {
   aceitarOrcamento, alertasMinimo, criarPedido, dataMinima, disponivel, esgotados, historicoBrinde,
   informarOrcamento, metricasDoPeriodo, mudarEstado, popularidade, registrarAjuste, registrarEntrada,
-  selos, urgencia, validarDataDesejada, validarPersonalizacao, valorDoPedido, valorEmEstoque,
+  selos, urgencia, validarDataDesejada, validarLinha, valorDoPedido, valorEmEstoque,
 } from "./regras";
 import type { Estado } from "./tipos";
 
@@ -68,10 +69,11 @@ describe("criarPedido", () => {
     ).toThrow(/disponíveis/);
   });
 
-  it("não reserva linha personalizável e respeita a quantidade mínima", () => {
-    const e = criarPedido(base, dados, [{ brindeId: "ecobag", variacaoId: "unica", qtd: 50 }]);
-    expect(vari(e, "ecobag", "unica").reserva).toBe(0);
-    expect(() => criarPedido(base, dados, [{ brindeId: "ecobag", variacaoId: "unica", qtd: 49 }])).toThrow(/mínima/);
+  it("não reserva linha personalizável", () => {
+    for (const qtd of [1, 49]) {
+      const e = criarPedido(base, dados, [{ brindeId: "ecobag", variacaoId: "unica", qtd }]);
+      expect(vari(e, "ecobag", "unica").reserva).toBe(0);
+    }
   });
 
   it("finalidade é obrigatória", () => {
@@ -105,7 +107,7 @@ describe("fluxo de estados", () => {
   const id = comPedido.pedidos[comPedido.pedidos.length - 1].id;
 
   it("recusa transição fora do fluxo", () => {
-    expect(() => mudarEstado(comPedido, id, "encerrada", "g1")).toThrow(/não é permitida/);
+    expect(() => mudarEstado(comPedido, id, "encerrada", "g1")).toThrow(/Não é possível passar o pedido de "Recebido" para "Retirado"/);
   });
 
   it("recusada e cancelada pedem motivo e liberam a reserva", () => {
@@ -193,10 +195,15 @@ describe("métricas e urgência", () => {
     expect(urgencia("2026-12-01", HOJE)).toBe("normal");
   });
 
-  it("validarPersonalizacao aceita só a partir do mínimo", () => {
+  it("validarLinha aceita no Personalizável todo inteiro a partir de 1", () => {
     const camiseta = brinde(base, "camiseta");
-    expect(validarPersonalizacao(camiseta, 19).ok).toBe(false);
-    expect(validarPersonalizacao(camiseta, 20).ok).toBe(true);
+    const v = camiseta.variacoes[0];
+    for (const q of [0, -1, 1.5]) {
+      const r = validarLinha(camiseta, v, q);
+      expect(r.ok).toBe(false);
+      expect(r.erros).toContain("Informe uma quantidade inteira, a partir de 1.");
+    }
+    expect(validarLinha(camiseta, v, 1).ok).toBe(true);
   });
 });
 
@@ -224,7 +231,7 @@ describe("cadastro de brinde", () => {
     const e = salvarBrinde(base, { ...caneca, nome: "Caneca nova", variacoes: caneca.variacoes.map((v) => ({ ...v, saldo: 0, reserva: 0 })) });
     expect(brinde(e, "caneca").nome).toBe("Caneca nova");
     expect(vari(e, "caneca", "azul").saldo).toBe(vari(base, "caneca", "azul").saldo);
-    expect(() => salvarBrinde(base, { ...caneca, tipo: "personalizavel", custoUnitario: null, quantidadeMinima: 10 })).toThrow(/tipo/);
+    expect(() => salvarBrinde(base, { ...caneca, tipo: "personalizavel", custoUnitario: null, prazoExtraDiasUteis: 5 })).toThrow(/tipo/);
   });
 
   it("valida campos obrigatórios e não remove variação com saldo", () => {
@@ -269,5 +276,21 @@ describe("painel de métricas", () => {
     expect(variacaoDeGasto({ gasto: 150, gastoMesAnterior: 100 })).toEqual({ sentido: "subiu", diferenca: 50, percentual: 50 });
     expect(variacaoDeGasto({ gasto: 50, gastoMesAnterior: 100 }).sentido).toBe("caiu");
     expect(variacaoDeGasto({ gasto: 10, gastoMesAnterior: 0 }).percentual).toBeNull();
+  });
+});
+
+describe("rótulos dos estados do pedido", () => {
+  it("o mapa único usa os nomes novos e as mensagens de erro citam os rótulos", () => {
+    expect(ROTULO_ESTADO).toEqual({
+      solicitada: "Recebido",
+      em_alinhamento: "Em preparação",
+      pronto: "Pronto para retirada",
+      encerrada: "Retirado",
+      recusada: "Recusado",
+      cancelada: "Cancelado",
+    });
+    const ini = criarPedido(base, dados, [{ brindeId: "caneca", variacaoId: "azul", qtd: 1 }]);
+    const id = ini.pedidos[ini.pedidos.length - 1].id;
+    expect(() => informarOrcamento(ini, id, 0, 10, "g1")).toThrow(/em "Em preparação"/);
   });
 });

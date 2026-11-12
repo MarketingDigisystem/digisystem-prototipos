@@ -22,6 +22,7 @@ import type {
   ValorPedido,
   Variacao,
 } from "./tipos";
+import { ROTULO_ESTADO } from "./formato";
 
 /* ------------------------------------------------------------------ */
 /* Constantes                                                          */
@@ -130,17 +131,6 @@ function inteiroPositivo(n: number): boolean {
   return Number.isInteger(n) && n >= 1;
 }
 
-export function validarPersonalizacao(b: Brinde, qtd: number): Validacao {
-  const erros: string[] = [];
-  if (!inteiroPositivo(qtd)) {
-    erros.push("Informe uma quantidade inteira, a partir de 1.");
-  } else if (b.tipo === "personalizavel") {
-    const minima = b.quantidadeMinima ?? 1;
-    if (qtd < minima) erros.push(`A quantidade mínima para personalizar é ${minima}.`);
-  }
-  return { ok: erros.length === 0, erros };
-}
-
 export function validarLinha(b: Brinde, v: Variacao, qtd: number): Validacao {
   const erros: string[] = [];
   if (!b.ativo) erros.push("Este brinde não está ativo.");
@@ -151,9 +141,8 @@ export function validarLinha(b: Brinde, v: Variacao, qtd: number): Validacao {
     const disp = disponivel(v);
     if (disp <= 0) erros.push("Indisponível no momento.");
     else if (qtd > disp) erros.push(`Só há ${disp} disponíveis.`);
-  } else {
-    erros.push(...validarPersonalizacao(b, qtd).erros);
   }
+  // Personalizável: sem saldo e sem mínimo por brinde; vale só o inteiro a partir de 1.
   return { ok: erros.length === 0, erros };
 }
 
@@ -297,7 +286,7 @@ export function mudarEstado(
   const d = clonar(e);
   const p = achar(d.pedidos, pedidoId, "Pedido");
   if (!TRANSICOES[p.estado].includes(alvo)) {
-    throw new Error("Essa mudança de estado não é permitida para o pedido.");
+    throw new Error(`Não é possível passar o pedido de "${ROTULO_ESTADO[p.estado]}" para "${ROTULO_ESTADO[alvo]}".`);
   }
   const exigeMotivo = alvo === "recusada" || alvo === "cancelada";
   const motivoLimpo = exigeMotivo ? textoObrigatorio(motivo, "Informe o motivo.") : undefined;
@@ -313,7 +302,7 @@ export function mudarEstado(
     for (const l of p.linhas) {
       if (l.tipo !== "estoque") continue;
       const { v } = achaVariacao(d, l.brindeId, l.variacaoId);
-      if (v.saldo < l.qtd || v.reserva < l.qtd) throw new Error("Estoque insuficiente para encerrar o pedido.");
+      if (v.saldo < l.qtd || v.reserva < l.qtd) throw new Error("Estoque insuficiente para confirmar a retirada do pedido.");
       v.saldo -= l.qtd;
       v.reserva -= l.qtd;
       registrar(d, { brindeId: l.brindeId, variacaoId: l.variacaoId, tipo: "saida", qtd: l.qtd, quem, pedidoId: p.id });
@@ -336,7 +325,7 @@ function linhaDoPedido(p: Pedido, indice: number): LinhaPedido {
   return l;
 }
 
-/** O Marketing informa o valor unitário do orçamento, dentro da linha, em Em alinhamento. */
+/** O Marketing informa o valor unitário do orçamento, dentro da linha, em "Em preparação". */
 export function informarOrcamento(
   e: Estado,
   pedidoId: string,
@@ -346,7 +335,7 @@ export function informarOrcamento(
 ): Estado {
   const d = clonar(e);
   const p = achar(d.pedidos, pedidoId, "Pedido");
-  if (p.estado !== "em_alinhamento") throw new Error("O orçamento só é informado com o pedido em alinhamento.");
+  if (p.estado !== "em_alinhamento") throw new Error(`O orçamento só é informado com o pedido em "${ROTULO_ESTADO.em_alinhamento}".`);
   const l = linhaDoPedido(p, indiceLinha);
   if (l.tipo !== "personalizavel") throw new Error("Só brindes personalizáveis têm orçamento.");
   if (!Number.isFinite(valorUnitario) || valorUnitario <= 0) throw new Error("Informe um valor unitário maior que zero.");
@@ -360,7 +349,7 @@ export function informarOrcamento(
 export function aceitarOrcamento(e: Estado, pedidoId: string, indiceLinha: number, quem: string): Estado {
   const d = clonar(e);
   const p = achar(d.pedidos, pedidoId, "Pedido");
-  if (p.estado !== "em_alinhamento") throw new Error("O aceite só vale com o pedido em alinhamento.");
+  if (p.estado !== "em_alinhamento") throw new Error(`O aceite só vale com o pedido em "${ROTULO_ESTADO.em_alinhamento}".`);
   const l = linhaDoPedido(p, indiceLinha);
   if (l.tipo !== "personalizavel" || l.orcamentoUnitario === undefined) {
     throw new Error("Não há orçamento para aceitar nesta linha.");
@@ -370,7 +359,7 @@ export function aceitarOrcamento(e: Estado, pedidoId: string, indiceLinha: numbe
   return d;
 }
 
-/** Ajusta a quantidade de uma linha em Solicitada ou Em alinhamento, com nota obrigatória. */
+/** Ajusta a quantidade de uma linha em "Recebido" ou "Em preparação", com nota obrigatória. */
 export function ajustarQuantidadeLinha(
   e: Estado,
   pedidoId: string,
@@ -382,7 +371,7 @@ export function ajustarQuantidadeLinha(
   const d = clonar(e);
   const p = achar(d.pedidos, pedidoId, "Pedido");
   if (p.estado !== "solicitada" && p.estado !== "em_alinhamento") {
-    throw new Error("A quantidade só muda enquanto o pedido está em Solicitada ou Em alinhamento.");
+    throw new Error(`A quantidade só muda enquanto o pedido está em "${ROTULO_ESTADO.solicitada}" ou "${ROTULO_ESTADO.em_alinhamento}".`);
   }
   const notaLimpa = textoObrigatorio(nota, "Informe a nota do ajuste.");
   const l = linhaDoPedido(p, indiceLinha);
@@ -393,8 +382,6 @@ export function ajustarQuantidadeLinha(
     if (delta > disponivel(v)) throw new Error(`Só há ${disponivel(v)} disponíveis a mais.`);
     v.reserva += delta;
   } else {
-    const r = validarPersonalizacao(b, novaQtd);
-    if (!r.ok) throw new Error(r.erros.join(" "));
     l.orcamentoAceito = false; // quantidade nova pede novo aceite
   }
   l.qtd = novaQtd;
@@ -517,7 +504,6 @@ export function salvarBrinde(e: Estado, brinde: Brinde): Estado {
   const rotulos = brinde.variacoes.map((v) => slugDe(v.rotulo));
   if (new Set(rotulos).size !== rotulos.length) throw new Error("Há variações com o mesmo nome.");
 
-  let quantidadeMinima: number | undefined;
   let prazoExtraDiasUteis: number | undefined;
   let custoUnitario: number | null = null;
   if (brinde.tipo === "estoque") {
@@ -526,12 +512,8 @@ export function salvarBrinde(e: Estado, brinde: Brinde): Estado {
     }
     custoUnitario = brinde.custoUnitario;
   } else {
-    if (brinde.quantidadeMinima === undefined || !inteiroPositivo(brinde.quantidadeMinima)) {
-      throw new Error("Informe a quantidade mínima, inteira e a partir de 1.");
-    }
     const prazo = brinde.prazoExtraDiasUteis ?? 0;
     if (!Number.isInteger(prazo) || prazo < 0) throw new Error("O prazo extra é um número inteiro de dias úteis, a partir de 0.");
-    quantidadeMinima = brinde.quantidadeMinima;
     prazoExtraDiasUteis = prazo;
   }
 
@@ -561,7 +543,6 @@ export function salvarBrinde(e: Estado, brinde: Brinde): Estado {
     tipo: brinde.tipo,
     custoUnitario,
     variacoes,
-    quantidadeMinima,
     prazoExtraDiasUteis,
     opcoesPersonalizacao: brinde.tipo === "personalizavel" ? brinde.opcoesPersonalizacao : undefined,
     novidade: brinde.novidade,
@@ -654,7 +635,7 @@ export function unidadesDoPedido(p: Pedido): number {
   return p.linhas.reduce((s, l) => s + l.qtd, 0);
 }
 
-/** Mês (AAAA-MM) em que o pedido foi encerrado, ou undefined. */
+/** Mês (AAAA-MM) em que o pedido foi retirado, ou undefined. */
 export function mesDoEncerramento(p: Pedido): string | undefined {
   if (p.estado !== "encerrada") return undefined;
   const ev = [...p.historico].reverse().find((h) => h.estado === "encerrada");
@@ -688,7 +669,7 @@ function gastoCalculado(e: Estado, mes: string): number {
   return encerradosDoMes(e, mes).reduce((s, p) => s + centavosDoPedido(p).centavos, 0) / 100;
 }
 
-/** Gasto do mês: total mock se o mês está fechado, senão soma dos pedidos Encerrados no mês. */
+/** Gasto do mês: total mock se o mês está fechado, senão soma dos pedidos retirados no mês. */
 export function gastoDoMes(e: Estado, mes: string): number {
   return mes in e.gastoFechado ? e.gastoFechado[mes] : gastoCalculado(e, mes);
 }
@@ -731,7 +712,7 @@ export function mesesDoPainel(e: Pick<Estado, "agora">): string[] {
   return [atual, anterior, mesAnteriorDe(anterior)];
 }
 
-/** Pedidos encerrados no mês (vazio se o mês é fechado), opcionalmente só de uma área, do mais recente ao mais antigo. */
+/** Pedidos retirados no mês (vazio se o mês é fechado), opcionalmente só de uma área, do mais recente ao mais antigo. */
 export function pedidosEncerradosDoPeriodo(e: Estado, mes: string, area?: string): Pedido[] {
   if (mes in e.gastoFechado) return [];
   return encerradosDoMes(e, mes)
@@ -739,7 +720,7 @@ export function pedidosEncerradosDoPeriodo(e: Estado, mes: string, area?: string
     .sort((a, b) => (mesDoEncerramentoEm(b) ?? "").localeCompare(mesDoEncerramentoEm(a) ?? ""));
 }
 
-/** Instante ISO em que o pedido foi encerrado, ou undefined. */
+/** Instante ISO em que o pedido foi retirado, ou undefined. */
 export function mesDoEncerramentoEm(p: Pedido): string | undefined {
   if (p.estado !== "encerrada") return undefined;
   return [...p.historico].reverse().find((h) => h.estado === "encerrada")?.em;
@@ -756,7 +737,7 @@ export function variacaoDeGasto(m: Pick<Metricas, "gasto" | "gastoMesAnterior">)
   return { sentido: diferenca > 0 ? "subiu" : diferenca < 0 ? "caiu" : "igual", diferenca: Math.abs(diferenca), percentual };
 }
 
-/** Unidades pedidas por brinde (sem recusadas e canceladas), da mais para a menos pedida. */
+/** Unidades pedidas por brinde (sem recusados e cancelados), da mais para a menos pedida. */
 export function popularidade(e: Estado): { brindeId: string; unidades: number }[] {
   const mapa = new Map<string, number>();
   for (const p of e.pedidos) {

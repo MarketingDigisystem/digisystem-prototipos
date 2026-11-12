@@ -25,6 +25,7 @@ import { href } from "../../rota";
 import { useLoja } from "../../store";
 import type { LinhaGasto } from "../../tipos";
 import { estiloEntrada, larguraDaBarra } from "../../movimento";
+import { ROTULO_ESTADO } from "../../formato";
 import { FotoBrinde } from "../../ui";
 import { BTN_SECUNDARIO, PILL, PILL_ATIVO, PILL_INATIVO, brl, formatarInstante } from "./comum";
 
@@ -198,7 +199,7 @@ export function Metricas() {
           <Kpi
             rotulo={`Gasto em ${nomeDoMes(mes)}`}
             valor={brl(m.gasto)}
-            nota={m.fechado ? "Total consolidado do mês fechado." : "Pedidos encerrados no mês."}
+            nota={m.fechado ? "Total consolidado do mês fechado." : "Pedidos retirados no mês."}
           >
             <p className="flex items-start gap-1 font-semibold text-foreground">
               <Icone className="mt-0.5 size-4 shrink-0" aria-hidden />
@@ -218,7 +219,7 @@ export function Metricas() {
         <Kpi
           rotulo="Unidades retiradas"
           valor={m.fechado ? "—" : String(m.unidadesRetiradas)}
-          nota={m.fechado ? "Sem detalhe neste mês." : "Em pedidos encerrados no mês."}
+          nota={m.fechado ? "Sem detalhe neste mês." : "Em pedidos retirados no mês."}
         />
         <Kpi rotulo="Prontas aguardando retirada" valor={String(m.prontosUnidades)} nota="Unidades em pedidos prontos, hoje." />
         <Kpi
@@ -248,16 +249,16 @@ export function Metricas() {
               linhas={m.porArea}
               selecionada={area}
               onEscolher={escolherArea}
-              vazio="Nenhum pedido encerrado neste mês."
+              vazio="Nenhum pedido retirado neste mês."
               chaveAnim={mes}
             />
-            <BarrasDeGasto titulo="Gasto por solicitante" linhas={m.porSolicitante} vazio="Nenhum pedido encerrado neste mês." chaveAnim={mes} />
+            <BarrasDeGasto titulo="Gasto por solicitante" linhas={m.porSolicitante} vazio="Nenhum pedido retirado neste mês." chaveAnim={mes} />
           </div>
 
           <section className={`${CARTAO} mt-4`} aria-labelledby="met-lista">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 id="met-lista" className="font-display text-lg font-bold text-navy">
-                Pedidos encerrados em {nomeDoMes(mes)}
+                Pedidos retirados em {nomeDoMes(mes)}
               </h2>
               <div className="flex items-center gap-2">
                 <p className="text-sm text-muted-foreground" aria-live="polite">
@@ -271,7 +272,7 @@ export function Metricas() {
             </div>
             {pedidos.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">
-                {area ? "Nenhum pedido encerrado desta área neste mês." : "Nenhum pedido encerrado neste mês."}
+                {area ? "Nenhum pedido retirado desta área neste mês." : "Nenhum pedido retirado neste mês."}
               </p>
             ) : (
               <ul key={`${mes}|${area ?? ""}`} className="mt-3 divide-y">
@@ -286,7 +287,7 @@ export function Metricas() {
                         </p>
                         <p title={p.finalidade} className="truncate text-sm text-foreground/80">{p.finalidade}</p>
                         <p className="text-xs text-muted-foreground">
-                          {em ? `Encerrado em ${formatarInstante(em)} · ` : ""}
+                          {em ? `${ROTULO_ESTADO.encerrada} em ${formatarInstante(em)} · ` : ""}
                           {plural(unidadesDoPedido(p), "unidade", "unidades")}
                         </p>
                       </div>

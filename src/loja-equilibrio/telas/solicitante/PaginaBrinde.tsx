@@ -60,12 +60,11 @@ function Conteudo({ b }: { b: Brinde }) {
   const loja = useLoja();
   const s = selos(b);
   const personalizavel = b.tipo === "personalizavel";
-  const minima = b.quantidadeMinima ?? 1;
 
   // Estoque: começa na primeira variação com saldo livre. Personalizável: primeira do tamanho/cor.
   const inicial = b.variacoes.find((v) => personalizavel || disponivel(v) > 0) ?? b.variacoes[0];
   const [variacaoId, setVariacaoId] = useState(inicial.id);
-  const [qtdTexto, setQtdTexto] = useState(personalizavel ? String(minima) : "1");
+  const [qtdTexto, setQtdTexto] = useState("1");
   const [tocou, setTocou] = useState(false);
   const [texto, setTexto] = useState("");
   const [nome, setNome] = useState("");
@@ -160,11 +159,7 @@ function Conteudo({ b }: { b: Brinde }) {
           </header>
 
           {personalizavel && (
-            <dl className="grid grid-cols-2 gap-3 rounded-2xl bg-secondary p-4 text-sm">
-              <div>
-                <dt className="text-xs text-muted-foreground">Quantidade mínima</dt>
-                <dd className="font-display text-lg font-bold text-navy">{minima} unidades</dd>
-              </div>
+            <dl className="grid gap-3 rounded-2xl bg-secondary p-4 text-sm">
               <div>
                 <dt className="text-xs text-muted-foreground">Prazo extra de produção</dt>
                 <dd className="font-display text-lg font-bold text-navy">{b.prazoExtraDiasUteis ?? 0} dias úteis</dd>

@@ -122,7 +122,7 @@ export interface Loja {
   carrinho: LinhaCarrinho[];
   carrinhoAberto: boolean;
   abrirCarrinho: (aberto: boolean) => void;
-  /** Valida a linha (ativo, variação, disponível, mínimo) somando o que já está no carrinho. */
+  /** Valida a linha (ativo, variação, disponível, inteiro a partir de 1) somando o que já está no carrinho. */
   adicionar: (brindeId: string, variacaoId: string, qtd: number, personalizacao?: LinhaCarrinho["personalizacao"]) => Resultado;
   definirQuantidade: (chave: string, qtd: number) => Resultado;
   remover: (chave: string) => void;
