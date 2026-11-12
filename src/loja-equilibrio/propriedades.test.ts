@@ -163,7 +163,7 @@ describe("Feature: loja-equilibrio-digiplace, Property 11: caminho de asset resp
 
 import { brl, razaoDeContraste } from "./formato";
 import {
-  COR_FAIXA_DESTAQUE, COR_FAIXA_ETIQUETA, COR_FAIXA_FUNDO, COR_FAIXA_SUBTITULO, COR_FAIXA_TEXTO,
+  COR_FAIXA_CANTO, COR_FAIXA_DESTAQUE, COR_FAIXA_ETIQUETA, COR_FAIXA_FUNDO, COR_FAIXA_SUBTITULO, COR_FAIXA_TEXTO,
   CONTRASTE_MINIMO_TEXTO_GRANDE, CONTRASTE_MINIMO_TEXTO_PEQUENO,
 } from "./FaixaApresentacao";
 import {
@@ -354,11 +354,11 @@ describe("Feature: loja-equilibrio-digiplace, Property 17: contraste do texto da
     { cor: COR_FAIXA_TEXTO, grande: false },
   ];
 
-  it("texto grande tem 3:1 ou mais e texto pequeno 4,5:1 ou mais sobre o navy", () => {
+  it("texto grande tem 3:1 ou mais e texto pequeno 4,5:1 ou mais sobre o ponto mais claro e o canto escuro", () => {
     fc.assert(
-      fc.property(fc.constantFrom(...pares), ({ cor, grande }) => {
+      fc.property(fc.constantFrom(...pares), fc.constantFrom(COR_FAIXA_FUNDO, COR_FAIXA_CANTO), ({ cor, grande }, fundo) => {
         const minimo = grande ? CONTRASTE_MINIMO_TEXTO_GRANDE : CONTRASTE_MINIMO_TEXTO_PEQUENO;
-        expect(razaoDeContraste(cor, COR_FAIXA_FUNDO)).toBeGreaterThanOrEqual(minimo);
+        expect(razaoDeContraste(cor, fundo)).toBeGreaterThanOrEqual(minimo);
       }),
       { numRuns: NUM_RUNS },
     );

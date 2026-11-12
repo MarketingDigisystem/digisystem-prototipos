@@ -273,7 +273,7 @@ describe("guarda 7: auth-proto não depende de loja-equilibrio", () => {
 
 import { razaoDeContraste } from "./formato";
 import {
-  COR_FAIXA_DESTAQUE, COR_FAIXA_ETIQUETA, COR_FAIXA_FUNDO, COR_FAIXA_SUBTITULO, COR_FAIXA_TEXTO,
+  COR_FAIXA_CANTO, COR_FAIXA_DESTAQUE, COR_FAIXA_ETIQUETA, COR_FAIXA_FUNDO, COR_FAIXA_SUBTITULO, COR_FAIXA_TEXTO,
   CONTRASTE_MINIMO_TEXTO_GRANDE, CONTRASTE_MINIMO_TEXTO_PEQUENO,
 } from "./FaixaApresentacao";
 
@@ -388,17 +388,27 @@ describe("guarda 13: contraste da faixa sobre o navy", () => {
     expect({
       fundo: COR_FAIXA_FUNDO, texto: COR_FAIXA_TEXTO, destaque: COR_FAIXA_DESTAQUE, etiqueta: COR_FAIXA_ETIQUETA, subtitulo: COR_FAIXA_SUBTITULO,
     }).toEqual({ fundo: "#36499b", texto: "#ffffff", destaque: "#ff7a3d", etiqueta: "#ffb88f", subtitulo: "#e8ecfb" });
+    expect(COR_FAIXA_CANTO).toBe("#17234f");
     const faixa = fontes["FaixaApresentacao.tsx"];
-    for (const hex of ["#36499b", "#ffffff", "#ff7a3d", "#ffb88f", "#e8ecfb"]) expect(faixa).toContain(`"${hex}"`);
+    for (const hex of ["#36499b", "#17234f", "#ffffff", "#ff7a3d", "#ffb88f", "#e8ecfb"]) expect(faixa).toContain(`"${hex}"`);
   });
 
-  it("título grande tem 3:1 ou mais e textos pequenos 4,5:1 ou mais", () => {
-    for (const cor of [COR_FAIXA_TEXTO, COR_FAIXA_DESTAQUE]) {
-      expect(razaoDeContraste(cor, COR_FAIXA_FUNDO)).toBeGreaterThanOrEqual(CONTRASTE_MINIMO_TEXTO_GRANDE);
+  it("título grande tem 3:1 ou mais e textos pequenos 4,5:1 ou mais no ponto mais claro e no canto escuro", () => {
+    for (const fundo of [COR_FAIXA_FUNDO, COR_FAIXA_CANTO]) {
+      for (const cor of [COR_FAIXA_TEXTO, COR_FAIXA_DESTAQUE]) {
+        expect(razaoDeContraste(cor, fundo)).toBeGreaterThanOrEqual(CONTRASTE_MINIMO_TEXTO_GRANDE);
+      }
+      for (const cor of [COR_FAIXA_ETIQUETA, COR_FAIXA_SUBTITULO, COR_FAIXA_TEXTO]) {
+        expect(razaoDeContraste(cor, fundo)).toBeGreaterThanOrEqual(CONTRASTE_MINIMO_TEXTO_PEQUENO);
+      }
     }
-    for (const cor of [COR_FAIXA_ETIQUETA, COR_FAIXA_SUBTITULO, COR_FAIXA_TEXTO]) {
-      expect(razaoDeContraste(cor, COR_FAIXA_FUNDO)).toBeGreaterThanOrEqual(CONTRASTE_MINIMO_TEXTO_PEQUENO);
-    }
+  });
+
+  it("o degradê usa quatro radiais nos cantos, sem arcos nem SVG decorativo", () => {
+    const faixa = fontes["FaixaApresentacao.tsx"];
+    expect(faixa).toContain("radial-gradient");
+    for (const posicao of ["0% 0%", "100% 0%", "0% 100%", "100% 100%"]) expect(faixa).toContain(`"${posicao}"`);
+    expect(faixa).not.toMatch(/<svg|<circle/i);
   });
 });
 

@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { razaoDeContraste, urlDoAsset } from "./formato";
 import {
-  COR_FAIXA_DESTAQUE, COR_FAIXA_ETIQUETA, COR_FAIXA_FUNDO, COR_FAIXA_SUBTITULO, COR_FAIXA_TEXTO,
+  COR_FAIXA_CANTO, COR_FAIXA_DESTAQUE, COR_FAIXA_ETIQUETA, COR_FAIXA_FUNDO, COR_FAIXA_SUBTITULO, COR_FAIXA_TEXTO,
   CONTRASTE_MINIMO_TEXTO_GRANDE, CONTRASTE_MINIMO_TEXTO_PEQUENO,
 } from "./FaixaApresentacao";
 
@@ -41,14 +41,18 @@ describe("razaoDeContraste (WCAG)", () => {
 
 describe("contraste da Faixa_de_Apresentacao sobre o navy (Req. 12.8)", () => {
   // **Validates: Requirements 12.8**
-  it("texto grande (título em negrito, 'para perto.') tem pelo menos 3:1", () => {
-    expect(razaoDeContraste(COR_FAIXA_DESTAQUE, COR_FAIXA_FUNDO)).toBeGreaterThanOrEqual(CONTRASTE_MINIMO_TEXTO_GRANDE);
-    expect(razaoDeContraste(COR_FAIXA_TEXTO, COR_FAIXA_FUNDO)).toBeGreaterThanOrEqual(CONTRASTE_MINIMO_TEXTO_GRANDE);
+  it("texto grande (título light, 'para perto.' semibold) tem pelo menos 3:1 no centro e no canto", () => {
+    for (const fundo of [COR_FAIXA_FUNDO, COR_FAIXA_CANTO]) {
+      expect(razaoDeContraste(COR_FAIXA_DESTAQUE, fundo)).toBeGreaterThanOrEqual(CONTRASTE_MINIMO_TEXTO_GRANDE);
+      expect(razaoDeContraste(COR_FAIXA_TEXTO, fundo)).toBeGreaterThanOrEqual(CONTRASTE_MINIMO_TEXTO_GRANDE);
+    }
   });
 
-  it("texto pequeno (etiqueta e subtítulo) tem pelo menos 4,5:1", () => {
-    for (const cor of [COR_FAIXA_ETIQUETA, COR_FAIXA_SUBTITULO, COR_FAIXA_TEXTO]) {
-      expect(razaoDeContraste(cor, COR_FAIXA_FUNDO)).toBeGreaterThanOrEqual(CONTRASTE_MINIMO_TEXTO_PEQUENO);
+  it("texto pequeno (etiqueta e subtítulo) tem pelo menos 4,5:1 no centro e no canto", () => {
+    for (const fundo of [COR_FAIXA_FUNDO, COR_FAIXA_CANTO]) {
+      for (const cor of [COR_FAIXA_ETIQUETA, COR_FAIXA_SUBTITULO, COR_FAIXA_TEXTO]) {
+        expect(razaoDeContraste(cor, fundo)).toBeGreaterThanOrEqual(CONTRASTE_MINIMO_TEXTO_PEQUENO);
+      }
     }
   });
 });

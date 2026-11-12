@@ -176,11 +176,11 @@ function FormularioBrinde({ inicial, onFechar: aoFechar }: { inicial: Brinde; on
               <input inputMode="decimal" value={custo} onChange={(e) => setCusto(e.target.value)} placeholder="0,00" className={CAMPO} />
             </Campo>
             {editando ? (
-              <Campo rotulo="Saldo atual" dica="Muda por entrada ou ajuste, em Estoque.">
+              <Campo rotulo="Saldo atual" dica="Muda por entrada, ajuste e retirada de pedidos.">
                 <input value={b.saldo} readOnly aria-readonly className={`${CAMPO} bg-secondary`} />
               </Campo>
             ) : (
-              <Campo rotulo="Saldo inicial">
+              <Campo rotulo="Saldo inicial" dica="Quantidade que você tem agora na prateleira. Vira a primeira linha do histórico.">
                 <input type="number" min={0} step={1} value={saldoInicial} onChange={(e) => setSaldoInicial(e.target.value)} className={CAMPO} />
               </Campo>
             )}
