@@ -14,8 +14,9 @@ import { OpcaoDPopover } from "./estudio-conteudo/OpcaoDPopover";
 import { EstudioFinal } from "./estudio-final/EstudioFinal";
 import { LojaDigiStore } from "./loja-digi-store/LojaDigiStore";
 import { RedesGrade } from "./redes/RedesGrade";
+import { LojaEquilibrio } from "./loja-equilibrio/LojaEquilibrio";
 
-type ProtoId = "auth" | "digiplace" | "estudio-conteudo" | "estudio-opcao-d" | "estudio-final" | "loja-digi-store" | "redes";
+type ProtoId = "auth" | "digiplace" | "estudio-conteudo" | "estudio-opcao-d" | "estudio-final" | "loja-digi-store" | "loja-equilibrio" | "redes";
 
 const PROTOTIPOS: { id: ProtoId; rotulo: string }[] = [
   { id: "estudio-conteudo", rotulo: "Estúdio — Conteúdo + Arte" },
@@ -34,7 +35,7 @@ function protoDoHash(): ProtoId {
   // Primeiro segmento do hash: "loja-digi-store/pedidos?estado=vazio" -> "loja-digi-store".
   const h = window.location.hash.replace(/^#\/?/, "").split(/[/?]/)[0];
   if (h === "redes" || h === "redes-grade") return "redes";
-  if (h === "auth" || h === "digiplace" || h === "estudio-conteudo" || h === "estudio-opcao-d" || h === "estudio-final" || h === "loja-digi-store") return h;
+  if (h === "auth" || h === "digiplace" || h === "estudio-conteudo" || h === "estudio-opcao-d" || h === "estudio-final" || h === "loja-digi-store" || h === "loja-equilibrio") return h;
   return "digiplace";
 }
 
@@ -55,7 +56,7 @@ export function App() {
   return (
     <>
       {/* Seletor de protótipo — só do protótipo. Oculto na Digi Store para não cobrir o cabeçalho (trocar via hash). */}
-      {proto !== "loja-digi-store" && proto !== "redes" && (
+      {proto !== "loja-digi-store" && proto !== "loja-equilibrio" && proto !== "redes" && (
       <div
         style={{
           position: "fixed",
@@ -112,6 +113,8 @@ export function App() {
         <RedesGrade />
       ) : proto === "loja-digi-store" ? (
         <LojaDigiStore />
+      ) : proto === "loja-equilibrio" ? (
+        <LojaEquilibrio />
       ) : (
         <LojaBrindes />
       )}

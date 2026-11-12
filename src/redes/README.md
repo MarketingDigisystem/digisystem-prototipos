@@ -3,6 +3,8 @@
 PROTÓTIPO DESCARTÁVEL — não é o app. Fonte da verdade = Lovable (projeto `2d1b57ac-2cef-495c-bec7-4ec19da575df`).
 Regenerar (não remendar) se o real mudar. Nunca copiar código daqui para o app.
 
+**STATUS: CONSUMIDO (2026-11-11).** Aprovado pelo usuário ("Aprovar só Redes"). NÃO foi apagado (decisão de 2026-11-11): segue publicado no GitHub Pages para consulta. Não evoluir nem copiar código para o app. A decisão durável está em `docs-marketing-hub/implementacao/pacote-redes-personalizaveis.md` (Tarefa 10.5). Fonte da verdade continua o Lovable.
+
 - Rota: `#/redes` (alias `#/redes-grade`; `?rede=linkedin` abre uma Visao_Rede).
 - Decisão de design: `docs-marketing-hub/implementacao/pacote-redes-personalizaveis.md`. Spec: `.kiro/specs/redes-personalizaveis-visao-unificada/` (tarefas 10.1 a 10.5).
 

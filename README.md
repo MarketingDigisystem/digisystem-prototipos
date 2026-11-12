@@ -51,3 +51,5 @@ Abas/etapas ainda não recriadas mostram um aviso simples ("… ainda não está
 - `src/mock/` — tipos, dados e "hooks" fake (mesma assinatura dos hooks reais de `use-posts.ts`).
 - `src/components/ui/` — Button/Dialog/Textarea/Label/Avatar mínimos (no app real são shadcn/Radix).
 - `src/AprovacoesView.tsx` — a tela prototipada.
+
+- Loja de brindes Equil�brio (prot�tipo): rota `#/loja-equilibrio` (Diretor) e `#/loja-equilibrio/gestao/metricas` (Gest�o).
