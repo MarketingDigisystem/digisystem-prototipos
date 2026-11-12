@@ -12,23 +12,22 @@ import { ClipboardList, Lightbulb, ShoppingBag } from "lucide-react";
 import { alertasMinimo, esgotados } from "./regras";
 import { href, navegar, type AbaGestao, type RotaAtual } from "./rota";
 import { useLoja, type Visao } from "./store";
+import { ParDeslizante, useContagemDeMudancas, useFaixaRolante } from "./ui";
 
 const BASE =
-  "relative inline-flex h-11 items-center justify-center gap-2 rounded-full border border-transparent px-3 font-display text-sm font-bold transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky";
-const ATIVO = "bg-navy-soft text-navy shadow-[0_0_0_2px_var(--sky)]";
+  "relative inline-flex h-11 items-center justify-center gap-2 rounded-full border border-transparent px-3 font-display text-sm font-bold le-cor focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]";
+const ATIVO = "bg-navy-soft text-[color:var(--le-ativo)] shadow-[0_0_0_2px_var(--sky)]";
 const INATIVO = "text-foreground/80 hover:bg-navy-soft hover:text-navy";
 
-/** Contador com largura reservada: o espaço existe de 0 a 99, só o fundo aparece quando há valor. */
+/** Contador de 28 px (mais 6 px de margem). Sem valor ele nem é renderizado: o rótulo ocupa o mesmo espaço com padding simétrico. */
 function Contador({ n }: { n: number }) {
   const texto = n > 99 ? "99+" : String(n);
   return (
     <span
       aria-hidden={n === 0}
-      className={`grid h-5 w-7 shrink-0 place-items-center rounded-full text-xs font-bold tabular-nums ${
-        n > 0 ? "bg-navy-soft text-navy" : "text-transparent"
-      }`}
+      className="ml-1.5 grid h-5 w-7 shrink-0 place-items-center rounded-full bg-navy-soft text-xs font-bold tabular-nums text-[color:var(--le-ativo)]"
     >
-      {n > 0 ? texto : "0"}
+      {texto}
     </span>
   );
 }
@@ -79,7 +78,9 @@ export function Cabecalho({ rota }: { rota: RotaAtual }) {
   const itens = useItensNav(rota);
   const unidades = loja.carrinho.reduce((n, l) => n + l.qtd, 0);
   const rotuloSelo = unidades > 99 ? "99+" : String(unidades);
+  const pulso = useContagemDeMudancas(unidades);
   const noDiretor = loja.visao === "diretor";
+  const refNav = useFaixaRolante<HTMLElement>(`${loja.visao}|${rota.t.tela}|${rota.t.tela === "gestao" ? rota.t.aba : ""}`);
 
   const trocar = (v: Visao) => {
     if (v === loja.visao) return;
@@ -88,10 +89,10 @@ export function Cabecalho({ rota }: { rota: RotaAtual }) {
   };
 
   return (
-    <header className="sticky top-0 z-30 border-b bg-card/90 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b bg-card/97 backdrop-blur">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         {/* Linha 1: marca à esquerda; Sugira e Carrinho na extremidade direita, larguras fixas. */}
-        <div className="flex h-16 items-center justify-between gap-3">
+        <div className="flex h-14 items-center justify-between gap-3 lg:h-16">
           <a href={href("")} className="flex h-11 w-[132px] shrink-0 items-center" aria-label="Digi Store, início">
             <span className="font-display text-2xl font-bold leading-none tracking-tight text-navy">Digi Store</span>
             <span className="ml-1 mt-2 size-1.5 shrink-0 rounded-full bg-accent" aria-hidden />
@@ -118,8 +119,12 @@ export function Cabecalho({ rota }: { rota: RotaAtual }) {
             >
               <ShoppingBag className="size-4 shrink-0" aria-hidden />
               <span className="hidden sm:inline">Carrinho</span>
+              {/* Selo absoluto: o pulso (scale 1 → 1,15 → 1) quando a quantidade muda não desloca nada. */}
               {unidades > 0 && (
-                <span className="pointer-events-none absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-xs font-bold leading-5 tabular-nums text-foreground">
+                <span
+                  key={pulso}
+                  className={`pointer-events-none absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-xs font-bold leading-5 tabular-nums text-[color:var(--on-accent)] ${pulso > 0 ? "le-pulso-selo" : ""}`}
+                >
                   {rotuloSelo}
                 </span>
               )}
@@ -127,10 +132,18 @@ export function Cabecalho({ rota }: { rota: RotaAtual }) {
           </div>
         </div>
 
-        {/* Linha 2: navegação com região estável + Seletor_de_Visao fixo na extremidade direita. */}
-        <div className="flex h-14 items-center justify-between gap-3 border-t border-border/60">
-          <nav aria-label={noDiretor ? "Navegação do diretor" : "Navegação da gestão"} className="le-nav h-full min-w-0 flex-1 overflow-x-auto">
-            <ul className="flex h-full w-max items-center gap-1">
+        {/*
+          Linha 2 (lg+): navegação na região estável + Seletor_de_Visao fixo na extremidade direita.
+          Abaixo de lg (A-04): a navegação ocupa uma linha própria de largura total e o seletor desce para a linha seguinte;
+          o rótulo "Ver o protótipo como" some (fica o aria-label do grupo). A estrutura depende só da largura, nunca do estado.
+        */}
+        <div className="flex flex-col border-t border-border/60 lg:h-14 lg:flex-row lg:items-center lg:justify-between lg:gap-3">
+          <nav
+            ref={refNav}
+            aria-label={noDiretor ? "Navegação do diretor" : "Navegação da gestão"}
+            className="le-nav le-rola -mx-1 my-0.5 min-w-0 overflow-x-auto px-1 py-1 lg:flex-1"
+          >
+            <ul className="flex w-max items-center gap-1">
               {itens.map((i) => (
                 <li key={i.id}>
                   <a
@@ -138,31 +151,36 @@ export function Cabecalho({ rota }: { rota: RotaAtual }) {
                     aria-current={i.ativo ? "page" : undefined}
                     className={`${BASE} gap-1.5 whitespace-nowrap ${i.ativo ? ATIVO : INATIVO}`}
                   >
-                    {i.rotulo}
-                    <Contador n={i.contador} />
+                    {/*
+                      Polimento final: sem contador o rótulo ganha 17 px de cada lado (metade de 6 + 28), então parece centrado e a largura
+                      do botão é a mesma de rótulo + 6 + 28 com contador. Só o rótulo se mexe dentro do botão; o botão e os vizinhos não.
+                    */}
+                    <span className="inline-flex items-center">
+                      <span className={i.contador > 0 ? "" : "px-[17px]"}>{i.rotulo}</span>
+                      {i.contador > 0 && <Contador n={i.contador} />}
+                    </span>
                   </a>
                 </li>
               ))}
             </ul>
           </nav>
 
-          <div className="flex shrink-0 items-center gap-2">
-            <span className="hidden w-[132px] text-right text-xs font-semibold text-muted-foreground md:block">Ver o protótipo como</span>
-            <div role="group" aria-label="Ver o protótipo como" className="grid grid-cols-2 gap-0.5 rounded-full bg-secondary p-0.5">
-              {(["diretor", "gestao"] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  aria-pressed={loja.visao === v}
-                  onClick={() => trocar(v)}
-                  className={`h-11 w-[76px] rounded-full font-display text-sm font-bold transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky sm:w-[88px] ${
-                    loja.visao === v ? "bg-navy text-white" : "text-navy hover:bg-card"
-                  }`}
-                >
-                  {v === "diretor" ? "Diretor" : "Gestão"}
-                </button>
-              ))}
-            </div>
+          <div className="flex shrink-0 items-center justify-end gap-2 pb-2 lg:pb-0">
+            <span className="hidden w-[132px] text-right text-xs font-semibold text-muted-foreground lg:block" aria-hidden>
+              Ver o protótipo como
+            </span>
+            {/* Indicador que desliza entre as duas opções; os botões ficam parados (mesma posição e largura). */}
+            <ParDeslizante<Visao>
+              rotulo="Ver o protótipo como"
+              opcoes={[
+                { id: "diretor", rotulo: "Diretor" },
+                { id: "gestao", rotulo: "Gestão" },
+              ]}
+              valor={loja.visao}
+              onChange={trocar}
+              className="grid w-full grid-cols-2 gap-0.5 rounded-full bg-secondary p-0.5 sm:w-auto"
+              botaoClassName="h-11 w-full rounded-full font-display text-sm font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)] sm:w-[88px]"
+            />
           </div>
         </div>
       </div>

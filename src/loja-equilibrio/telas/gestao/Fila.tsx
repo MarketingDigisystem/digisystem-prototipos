@@ -6,11 +6,13 @@
 // Fila de pedidos. A lista fica numa coluna e o detalhe numa coluna de largura fixa (lg) ou folha lateral fixa (abaixo de lg):
 // selecionar um pedido nunca empurra a lista. Rodapé de ações ancorado no fim do painel, com o campo de motivo sempre presente.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { TRANSICOES, hojeDe, unidadesDoPedido, urgencia, valorDoPedido } from "../../regras";
+import { SAIDA_ITEM_MS, estiloEntrada } from "../../movimento";
 import { useLoja } from "../../store";
 import type { EstadoPedido, LinhaPedido, Pedido } from "../../tipos";
+import { useAbaixoDeLg, useArmadilhaFoco, useFaixaRolante, useRetido } from "../../ui";
 import {
   BTN_LARANJA,
   BTN_PRIMARIO,
@@ -176,8 +178,8 @@ function Detalhe({ pedido, onFechar }: { pedido: Pedido; onFechar: () => void })
   const secundarios = alvos.filter((a) => a !== principal);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <header className="flex items-start justify-between gap-3 border-b px-5 py-4">
+    <div className="le-fade flex h-full min-h-0 flex-col">
+      <header className="flex shrink-0 items-start justify-between gap-3 border-b px-5 py-4">
         <div className="min-w-0">
           <p className="text-xs font-semibold text-muted-foreground">Pedido {pedido.id}</p>
           <h2 className="font-display text-xl font-bold leading-tight text-navy">{loja.nomeDaPessoa(pedido.solicitanteId)}</h2>
@@ -189,7 +191,7 @@ function Detalhe({ pedido, onFechar }: { pedido: Pedido; onFechar: () => void })
             type="button"
             onClick={onFechar}
             aria-label="Fechar detalhe"
-            className="grid size-11 place-items-center rounded-full hover:bg-navy-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky lg:hidden"
+            className="le-btn grid size-11 place-items-center rounded-full hover:bg-navy-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)] lg:hidden"
           >
             <X className="size-5" aria-hidden />
           </button>
@@ -253,7 +255,7 @@ function Detalhe({ pedido, onFechar }: { pedido: Pedido; onFechar: () => void })
       </div>
 
       {/* Rodapé ancorado: o campo de motivo está sempre aqui e a mensagem tem faixa reservada. */}
-      <footer className="border-t px-5 py-3">
+      <footer className="shrink-0 border-t px-5 py-3">
         {alvos.length === 0 ? (
           <p className="min-h-11 py-3 text-sm text-muted-foreground">Pedido {ROTULO_ESTADO[pedido.estado].toLowerCase()}: nada a fazer.</p>
         ) : (
@@ -321,35 +323,55 @@ export function Fila() {
 
   const atual = dados.pedidos.find((p) => p.id === selecionado) ?? null;
 
+  // Abaixo de lg o detalhe é uma folha modal: foco preso, fundo sem rolar, Esc fecha e o foco volta ao pedido clicado (A-13).
+  const abaixoDeLg = useAbaixoDeLg();
+  const folha = !!atual && abaixoDeLg;
+  // Saída animada da folha (< lg): o pedido fica montado por 180 ms depois de fechar, enquanto ela desliza para fora.
+  const exibido = useRetido(atual, SAIDA_ITEM_MS);
+  const estadoFolha = atual ? "aberto" : exibido ? "saindo" : "fechado";
+  const refFolha = useRef<HTMLElement>(null);
+  useArmadilhaFoco(folha, refFolha);
+  useEffect(() => {
+    if (!folha) return;
+    const f = (ev: KeyboardEvent) => ev.key === "Escape" && setSelecionado(null);
+    window.addEventListener("keydown", f);
+    return () => window.removeEventListener("keydown", f);
+  }, [folha]);
+  const refFiltros = useFaixaRolante<HTMLDivElement>(filtro);
+
   return (
     <section className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6" aria-labelledby="fila-titulo">
       <h1 id="fila-titulo" className="sr-only">
         Fila de pedidos
       </h1>
 
-      <div role="group" aria-label="Filtrar por estado" className="le-nav overflow-x-auto">
-        <div className="flex w-max items-center gap-1">
-          {FILTROS.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              aria-pressed={filtro === f.id}
-              onClick={() => setFiltro(f.id)}
-              className={`${PILL} ${filtro === f.id ? PILL_ATIVO : PILL_INATIVO}`}
-            >
-              {f.rotulo}
-              <Contador n={contagem[f.id]} />
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <p className="flex min-h-9 items-center text-xs text-muted-foreground" aria-live="polite">
-        {lista.length === 1 ? "1 pedido" : `${lista.length} pedidos`}, os mais urgentes primeiro.
-      </p>
-
+      {/*
+        Polimento final: a grade começa na altura dos filtros (eles ficam na coluna da lista), então o painel nasce logo abaixo do cabeçalho
+        e a altura dele (100vh − 153 px) termina dentro da janela já na primeira tela. Miolo com rolagem interna, rodapé de ações ancorado.
+      */}
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start lg:gap-5">
-        <div>
+        <div className="min-w-0">
+          <div ref={refFiltros} role="group" aria-label="Filtrar por estado" className="le-nav le-rola -my-1 overflow-x-auto px-1 py-1 -mx-1">
+            <div className="flex w-max items-center gap-1">
+              {FILTROS.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  aria-pressed={filtro === f.id}
+                  onClick={() => setFiltro(f.id)}
+                  className={`${PILL} ${filtro === f.id ? PILL_ATIVO : PILL_INATIVO}`}
+                >
+                  {f.rotulo}
+                  <Contador n={contagem[f.id]} />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <p className="flex min-h-9 items-center text-xs text-muted-foreground" aria-live="polite">
+            {lista.length === 1 ? "1 pedido" : `${lista.length} pedidos`}, os mais urgentes primeiro.
+          </p>
+
           {lista.length === 0 ? (
             <div className="rounded-3xl border bg-card p-8 text-center shadow-card">
               <h2 className="font-display text-xl font-bold text-navy">Nenhum pedido neste filtro</h2>
@@ -357,22 +379,22 @@ export function Fila() {
             </div>
           ) : (
             <ul className="grid gap-2">
-              {lista.map((p) => {
+              {lista.map((p, i) => {
                 const ativo = ATIVOS.includes(p.estado);
                 const marcado = p.id === selecionado;
                 return (
-                  <li key={p.id}>
+                  <li key={p.id} className="le-cartao le-entra" style={estiloEntrada(i)}>
                     <button
                       type="button"
                       aria-pressed={marcado}
                       onClick={() => setSelecionado(p.id)}
-                      className={`grid w-full min-h-[44px] gap-x-4 gap-y-1 rounded-2xl border bg-card p-3 text-left shadow-card transition-shadow hover:shadow-float focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky motion-reduce:transition-none md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] md:items-center ${marcado ? "ring-2 ring-sky" : ""}`}
+                      className={`grid w-full min-h-[44px] gap-x-4 gap-y-1 rounded-2xl border bg-card p-3 text-left shadow-card le-cor focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)] md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] md:items-center ${marcado ? "ring-2 ring-sky" : ""}`}
                     >
                       <span className="min-w-0">
                         <span className="block font-display text-base font-bold text-navy">
                           {loja.nomeDaPessoa(p.solicitanteId)} <span className="text-xs font-normal text-muted-foreground">· {p.id}</span>
                         </span>
-                        <span className="block truncate text-xs text-muted-foreground">
+                        <span title={`${p.areaSolicitante || "Sem área"} · ${p.finalidade}`} className="line-clamp-2 break-words text-xs text-muted-foreground">
                           {p.areaSolicitante || "Sem área"} · {p.finalidade}
                         </span>
                       </span>
@@ -394,14 +416,22 @@ export function Fila() {
           )}
         </div>
 
-        {/* Mesmo elemento nos dois modos: coluna fixa de 420 px em lg, folha lateral fixa abaixo disso. */}
-        {atual && <div className="fixed inset-0 z-40 bg-foreground/40 lg:hidden" onClick={() => setSelecionado(null)} aria-hidden />}
+        {/*
+          Mesmo elemento nos dois modos: coluna fixa de 420 px em lg, folha lateral fixa abaixo disso.
+          Abaixo de lg a folha e o fundo entram (320 ms, curva de marca) e saem (180 ms, curva de saída) por animação CSS; em lg não há movimento.
+          Trocar de pedido em lg remonta o detalhe (key) com um crossfade de 120 ms.
+        */}
+        {exibido && <div className="le-scrim-anim fixed inset-0 z-40 bg-foreground/40 lg:hidden" data-estado={estadoFolha} onClick={() => setSelecionado(null)} aria-hidden />}
         <aside
+          ref={refFolha}
           aria-label="Detalhe do pedido"
-          className={`${atual ? "fixed" : "hidden"} inset-y-0 right-0 z-50 w-full max-w-md bg-card shadow-float lg:sticky lg:top-4 lg:z-auto lg:block lg:h-[calc(100vh-2rem)] lg:max-w-none lg:rounded-3xl lg:border lg:shadow-card`}
+          role={folha ? "dialog" : undefined}
+          aria-modal={folha ? true : undefined}
+          data-estado={estadoFolha}
+          className={`${exibido ? "le-folha fixed" : "hidden"} inset-y-0 right-0 z-50 w-full max-w-md bg-card shadow-float lg:sticky lg:top-[8.5625rem] lg:z-auto lg:block lg:h-[calc(100vh-9.5625rem)] lg:max-w-none lg:rounded-3xl lg:border lg:shadow-card`}
         >
-          {atual ? (
-            <Detalhe key={atual.id} pedido={atual} onFechar={() => setSelecionado(null)} />
+          {exibido ? (
+            <Detalhe key={exibido.id} pedido={exibido} onFechar={() => setSelecionado(null)} />
           ) : (
             <div className="grid h-full place-items-center p-8 text-center">
               <div>

@@ -6,8 +6,10 @@
 // Fila de sugestões de brinde com abas. Cada cartão tem sempre o campo de motivo e a faixa de erro, então as ações não se movem.
 
 import { useMemo, useState } from "react";
+import { estiloEntrada } from "../../movimento";
 import { useLoja } from "../../store";
 import type { EstadoSugestao, Sugestao } from "../../tipos";
+import { useFaixaRolante } from "../../ui";
 import { BTN_PRIMARIO, BTN_SECUNDARIO, CAMPO, Contador, ErroInline, PILL, PILL_ATIVO, PILL_INATIVO, formatarInstante } from "./comum";
 
 type Aba = "analisar" | "aprovadas" | "recusadas" | "todas";
@@ -28,10 +30,10 @@ const COR: Record<EstadoSugestao, string> = {
   sugerida: "bg-sky-soft text-navy ring-1 ring-sky",
   em_analise: "bg-warning-soft text-foreground ring-1 ring-warning",
   aprovada: "bg-success-soft text-foreground ring-1 ring-success",
-  recusada: "bg-secondary text-destructive ring-1 ring-destructive/40",
+  recusada: "bg-secondary text-[color:var(--destructive-strong)] ring-1 ring-destructive/40",
 };
 
-function Cartao({ s }: { s: Sugestao }) {
+function Cartao({ s, indice }: { s: Sugestao; indice: number }) {
   const loja = useLoja();
   const [motivo, setMotivo] = useState("");
   const [erro, setErro] = useState<string | null>(null);
@@ -43,7 +45,7 @@ function Cartao({ s }: { s: Sugestao }) {
   };
 
   return (
-    <li className="rounded-2xl border bg-card p-4 shadow-card">
+    <li style={estiloEntrada(indice)} className="le-entra rounded-2xl border bg-card p-4 shadow-card">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="font-display text-lg font-bold text-navy">{s.nome}</h3>
@@ -92,6 +94,7 @@ export function Sugestoes() {
   const { dados } = useLoja();
   const [aba, setAba] = useState<Aba>("analisar");
   const config = ABAS.find((a) => a.id === aba)!;
+  const refAbas = useFaixaRolante<HTMLDivElement>(aba);
 
   const contagem = useMemo(
     () => Object.fromEntries(ABAS.map((a) => [a.id, dados.sugestoes.filter((s) => a.estados.includes(s.estado)).length])) as Record<Aba, number>,
@@ -107,7 +110,7 @@ export function Sugestoes() {
       <h1 id="sug-titulo" className="sr-only">
         Sugestões de brindes
       </h1>
-      <div role="group" aria-label="Filtrar sugestões" className="le-nav overflow-x-auto">
+      <div ref={refAbas} role="group" aria-label="Filtrar sugestões" className="le-nav le-rola -mx-1 -my-1 overflow-x-auto px-1 py-1">
         <div className="flex w-max items-center gap-1">
           {ABAS.map((a) => (
             <button
@@ -132,9 +135,9 @@ export function Sugestoes() {
           <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">Quando alguém sugerir um brinde, ele aparece nesta fila.</p>
         </div>
       ) : (
-        <ul className="grid gap-3">
-          {lista.map((s) => (
-            <Cartao key={s.id} s={s} />
+        <ul key={aba} className="grid gap-3">
+          {lista.map((s, i) => (
+            <Cartao key={s.id} s={s} indice={i} />
           ))}
         </ul>
       )}

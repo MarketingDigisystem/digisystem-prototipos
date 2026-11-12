@@ -7,10 +7,11 @@
 // Saldo e reserva nunca são editados aqui: entram pelo Estoque (entrada/ajuste), para a conta continuar fechando.
 
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Check, Plus, Trash2 } from "lucide-react";
 import { useLoja } from "../../store";
 import type { Brinde, TipoBrinde, Variacao } from "../../tipos";
-import { FotoBrinde } from "../../ui";
+import { SAIDA_DIALOGO_MS, estiloEntrada } from "../../movimento";
+import { FotoBrinde, Msg, useSaidaAnimada } from "../../ui";
 import { BTN_PRIMARIO, BTN_SECUNDARIO, CAMPO, Campo, Dialogo, ErroInline, PILL, PILL_ATIVO, PILL_INATIVO } from "./comum";
 
 /** Fotos disponíveis em public/brindes/ (conferidas no disco em 2026-11-11). */
@@ -37,8 +38,10 @@ function rascunhoNovo(): Brinde {
   };
 }
 
-function FormularioBrinde({ inicial, onFechar }: { inicial: Brinde; onFechar: () => void }) {
+function FormularioBrinde({ inicial, onFechar: aoFechar }: { inicial: Brinde; onFechar: () => void }) {
   const loja = useLoja();
+  // Fechar (Cancelar, Esc, X, fundo e salvar) passa pela saída animada: o diálogo só desmonta depois dela.
+  const { saindo, fechar: onFechar } = useSaidaAnimada(aoFechar, SAIDA_DIALOGO_MS);
   const editando = inicial.id !== "";
   const [b, setB] = useState<Brinde>(() => structuredClone(inicial));
   const [custo, setCusto] = useState(inicial.custoUnitario !== null ? String(inicial.custoUnitario) : "");
@@ -61,6 +64,7 @@ function FormularioBrinde({ inicial, onFechar }: { inicial: Brinde; onFechar: ()
     <Dialogo
       aberto
       largo
+      saindo={saindo}
       titulo={editando ? `Editar ${inicial.nome}` : "Novo brinde"}
       onFechar={onFechar}
       rodape={
@@ -135,11 +139,16 @@ function FormularioBrinde({ inicial, onFechar }: { inicial: Brinde; onFechar: ()
                 key={f}
                 type="button"
                 aria-pressed={b.foto === f}
-                aria-label={`Foto ${f.replace("/brindes/", "").replace(".png", "")}`}
                 onClick={() => setB({ ...b, foto: f })}
-                className={`overflow-hidden rounded-xl border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky ${b.foto === f ? "ring-2 ring-sky" : ""}`}
+                className={`relative overflow-hidden rounded-xl border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--le-foco)] ${b.foto === f ? "ring-2 ring-inset ring-sky" : ""}`}
               >
-                <FotoBrinde src={f} alt="" />
+                <FotoBrinde src={f} alt="" compacto />
+                <span className="sr-only">{`Foto ${f.replace("/brindes/", "").replace(".png", "")}`}</span>
+                {b.foto === f && (
+                  <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-navy text-navy-foreground" aria-hidden>
+                    <Check className="size-3" strokeWidth={3} />
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -208,7 +217,7 @@ function FormularioBrinde({ inicial, onFechar }: { inicial: Brinde; onFechar: ()
                   aria-label={`Remover variação ${i + 1}`}
                   disabled={b.variacoes.length === 1}
                   onClick={() => setB({ ...b, variacoes: b.variacoes.filter((_, j) => j !== i) })}
-                  className="grid size-11 shrink-0 place-items-center rounded-full text-foreground/70 hover:bg-navy-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky disabled:opacity-40"
+                  className="grid size-11 shrink-0 place-items-center rounded-full text-foreground/70 hover:bg-navy-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)] disabled:opacity-40"
                 >
                   <Trash2 className="size-4" aria-hidden />
                 </button>
@@ -261,10 +270,10 @@ export function Cadastro() {
       </p>
 
       <ul className="grid gap-2">
-        {dados.brindes.map((b) => (
-          <li key={b.id} className="flex flex-wrap items-center gap-3 rounded-2xl border bg-card p-3 shadow-card">
+        {dados.brindes.map((b, i) => (
+          <li key={b.id} style={estiloEntrada(i)} className="le-entra flex flex-wrap items-center gap-3 rounded-2xl border bg-card p-3 shadow-card">
             <div className={`size-16 shrink-0 overflow-hidden rounded-xl border ${b.ativo ? "" : "opacity-50"}`}>
-              <FotoBrinde src={b.foto} alt={b.nome} />
+              <FotoBrinde src={b.foto} alt={b.nome} compacto />
             </div>
             <div className="min-w-0 flex-1 basis-48">
               <p className="font-display text-base font-bold text-navy">{b.nome}</p>
@@ -273,7 +282,11 @@ export function Cadastro() {
                 {b.variacoes.length === 1 ? "variação" : "variações"}
                 {b.novidade ? " · Novidade" : ""}
               </p>
-              {erro?.id === b.id && <p role="alert" className="text-xs font-semibold text-destructive">{erro.texto}</p>}
+              {erro?.id === b.id && (
+                <p role="alert" className="text-xs font-semibold text-[color:var(--destructive-strong)]">
+                  <Msg texto={erro.texto} />
+                </p>
+              )}
             </div>
             <span
               className={`inline-flex h-6 w-16 shrink-0 items-center justify-center rounded-full font-display text-xs font-bold ${b.ativo ? "bg-success-soft text-foreground ring-1 ring-success" : "bg-secondary text-muted-foreground"}`}

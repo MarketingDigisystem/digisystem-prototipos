@@ -12,7 +12,8 @@ import { disponivelBrinde, selos } from "../../regras";
 import { href } from "../../rota";
 import { useLoja } from "../../store";
 import type { Brinde } from "../../tipos";
-import { FotoBrinde, Selo } from "../../ui";
+import { estiloEntrada } from "../../movimento";
+import { FotoBrinde, Selo, useFaixaRolante } from "../../ui";
 
 type Ordem = "novos" | "custo" | "az";
 
@@ -23,11 +24,11 @@ const ORDENS: { id: Ordem; rotulo: string }[] = [
 ];
 
 const PILL =
-  "inline-flex h-11 shrink-0 items-center justify-center rounded-full border border-transparent px-4 font-display text-sm font-bold whitespace-nowrap transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky";
-const PILL_ATIVO = "bg-navy-soft text-navy shadow-[0_0_0_2px_var(--sky)]";
+  "inline-flex h-11 shrink-0 items-center justify-center rounded-full border border-transparent px-4 font-display text-sm font-bold whitespace-nowrap le-cor focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]";
+const PILL_ATIVO = "bg-navy-soft text-[color:var(--le-ativo)] shadow-[0_0_0_2px_var(--sky)]";
 const PILL_INATIVO = "text-foreground/80 hover:bg-navy-soft hover:text-navy";
 const CAMPO =
-  "h-11 rounded-full border bg-card px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky";
+  "h-11 rounded-full border bg-card px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]";
 
 /** Texto sem acento e em minúsculas, para a busca por nome. */
 function normalizar(t: string): string {
@@ -51,14 +52,15 @@ function ordenar(lista: Brinde[], ordem: Ordem): Brinde[] {
   return l.sort((a, b) => Number(b.novidade) - Number(a.novidade) || (idx.get(b.id)! - idx.get(a.id)!));
 }
 
-function Cartao({ b }: { b: Brinde }) {
+function Cartao({ b, indice }: { b: Brinde; indice: number }) {
   const s = selos(b);
   const disp = disponivelBrinde(b);
+  // li: entrada escalonada (fade) e elevação no hover por transform; a sombra de hover vive num pseudo-elemento do li (.le-cartao), fora do overflow do link.
   return (
-    <li>
+    <li className="le-cartao le-entra" style={estiloEntrada(indice)}>
       <a
         href={href(`brinde/${b.slug}`)}
-        className="group flex h-full flex-col overflow-hidden rounded-2xl border bg-card shadow-card transition-shadow hover:shadow-float focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky motion-reduce:transition-none"
+        className="group flex h-full flex-col overflow-hidden rounded-2xl border bg-card shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]"
       >
         <div className="relative">
           <FotoBrinde src={b.foto} alt={b.nome} className={s.indisponivel ? "opacity-60" : ""} />
@@ -92,6 +94,7 @@ export function Vitrine() {
   const [categoria, setCategoria] = useState("Todos");
   const [busca, setBusca] = useState("");
   const [ordem, setOrdem] = useState<Ordem>("novos");
+  const refCategorias = useFaixaRolante<HTMLDivElement>(categoria);
 
   const ativos = useMemo(() => dados.brindes.filter((b) => b.ativo), [dados.brindes]);
   const categorias = useMemo(() => ["Todos", ...Array.from(new Set(ativos.map((b) => b.categoria)))], [ativos]);
@@ -118,7 +121,7 @@ export function Vitrine() {
 
       {/* Linha única e discreta: categorias à esquerda (rola se faltar espaço), busca e ordem fixas à direita. */}
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div role="group" aria-label="Categorias" className="le-nav min-w-0 flex-1 overflow-x-auto">
+        <div ref={refCategorias} role="group" aria-label="Categorias" className="le-nav le-rola -mx-1 -my-1 min-w-0 flex-1 overflow-x-auto px-1 py-1">
           <div className="flex w-max items-center gap-1">
             {categorias.map((c) => (
               <button
@@ -169,7 +172,7 @@ export function Vitrine() {
       </p>
 
       {lista.length === 0 ? (
-        <div className="rounded-3xl border bg-card p-8 text-center shadow-card">
+        <div className="le-fade rounded-3xl border bg-card p-8 text-center shadow-card">
           <h2 className="font-display text-xl font-bold text-navy">Nenhum brinde encontrado</h2>
           <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
             {filtrando ? "Tente outro nome ou outra categoria, ou volte para ver todos os brindes." : "Ainda não há brindes ativos no catálogo."}
@@ -178,7 +181,7 @@ export function Vitrine() {
             <button
               type="button"
               onClick={limpar}
-              className="mt-4 inline-flex h-11 items-center rounded-full bg-navy px-5 font-display text-sm font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky"
+              className="le-btn mt-4 inline-flex h-11 items-center rounded-full bg-navy px-5 font-display text-sm font-bold text-navy-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]"
             >
               Ver todos os brindes
             </button>
@@ -186,8 +189,8 @@ export function Vitrine() {
         </div>
       ) : (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
-          {lista.map((b) => (
-            <Cartao key={b.id} b={b} />
+          {lista.map((b, i) => (
+            <Cartao key={b.id} b={b} indice={i} />
           ))}
         </ul>
       )}

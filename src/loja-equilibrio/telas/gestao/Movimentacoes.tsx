@@ -7,6 +7,7 @@
 
 import { useMemo, useState } from "react";
 import { historicoBrinde } from "../../regras";
+import { estiloEntrada } from "../../movimento";
 import { useLoja } from "../../store";
 import type { Movimentacao, TipoMovimentacao } from "../../tipos";
 import { CAMPO, formatarInstante } from "./comum";
@@ -26,7 +27,7 @@ function textoQtd(m: Movimentacao): string {
 
 function corQtd(m: Movimentacao): string {
   const negativo = m.tipo === "saida" || (m.tipo === "ajuste" && m.qtd < 0);
-  return negativo ? "text-destructive" : "text-foreground";
+  return negativo ? "text-[color:var(--destructive-strong)]" : "text-foreground";
 }
 
 function Conta({ rotulo, valor, forte }: { rotulo: string; valor: string; forte?: boolean }) {
@@ -38,12 +39,12 @@ function Conta({ rotulo, valor, forte }: { rotulo: string; valor: string; forte?
   );
 }
 
-function ItemMov({ m, rotuloExtra }: { m: Movimentacao; rotuloExtra?: string }) {
+function ItemMov({ m, rotuloExtra, indice }: { m: Movimentacao; rotuloExtra?: string; indice: number }) {
   const { nomeDaPessoa, brinde } = useLoja();
   const b = brinde(m.brindeId);
   const v = b?.variacoes.find((x) => x.id === m.variacaoId);
   return (
-    <li className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 border-b px-4 py-3 last:border-b-0">
+    <li style={estiloEntrada(indice)} className="le-entra grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 border-b px-4 py-3 last:border-b-0">
       <div className="min-w-0">
         <p className="text-sm font-semibold">
           {ROTULO[m.tipo]}
@@ -115,9 +116,9 @@ export function Movimentacoes() {
               {h.movimentacoes.length === 0 ? (
                 <p className="rounded-2xl border bg-card p-4 text-sm text-muted-foreground">Ainda não há movimentações para este brinde.</p>
               ) : (
-                <ul className="overflow-hidden rounded-3xl border bg-card shadow-card">
-                  {[...h.movimentacoes].reverse().map((m) => (
-                    <ItemMov key={m.id} m={m} />
+                <ul key={escolhido} className="overflow-hidden rounded-3xl border bg-card shadow-card">
+                  {[...h.movimentacoes].reverse().map((m, i) => (
+                    <ItemMov key={m.id} m={m} indice={i} />
                   ))}
                 </ul>
               )}
@@ -131,8 +132,8 @@ export function Movimentacoes() {
             <p className="rounded-2xl border bg-card p-4 text-sm text-muted-foreground">Nenhuma movimentação registrada.</p>
           ) : (
             <ul className="overflow-hidden rounded-3xl border bg-card shadow-card">
-              {recentes.map((m) => (
-                <ItemMov key={m.id} m={m} rotuloExtra={brinde(m.brindeId)?.nome} />
+              {recentes.map((m, i) => (
+                <ItemMov key={m.id} m={m} indice={i} rotuloExtra={brinde(m.brindeId)?.nome} />
               ))}
             </ul>
           )}

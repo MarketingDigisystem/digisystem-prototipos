@@ -24,6 +24,7 @@ import {
 import { href } from "../../rota";
 import { useLoja } from "../../store";
 import type { LinhaGasto } from "../../tipos";
+import { estiloEntrada, larguraDaBarra } from "../../movimento";
 import { FotoBrinde } from "../../ui";
 import { BTN_SECUNDARIO, PILL, PILL_ATIVO, PILL_INATIVO, brl, formatarInstante } from "./comum";
 
@@ -52,7 +53,9 @@ function Kpi({ rotulo, valor, nota, children }: { rotulo: string; valor: string;
   return (
     <div className="rounded-2xl border bg-card p-4 shadow-card">
       <p className="text-xs font-semibold text-muted-foreground">{rotulo}</p>
-      <p className="font-display text-2xl font-bold tabular-nums text-navy">{valor}</p>
+      <p key={valor} className="le-fade font-display text-2xl font-bold tabular-nums text-navy">
+        {valor}
+      </p>
       {/* Altura reservada: a nota pode mudar de texto sem empurrar os cartões vizinhos. */}
       <div className="mt-1 min-h-10 text-xs text-muted-foreground">
         {children}
@@ -68,6 +71,7 @@ function BarrasDeGasto({
   selecionada,
   onEscolher,
   vazio,
+  chaveAnim,
 }: {
   titulo: string;
   linhas: LinhaGasto[];
@@ -75,6 +79,8 @@ function BarrasDeGasto({
   /** Presente só nas barras de área: clicar filtra a lista de pedidos. */
   onEscolher?: (chave: string) => void;
   vazio: string;
+  /** Muda quando o período muda: remonta as barras para crescerem de novo. */
+  chaveAnim: string;
 }) {
   const maior = Math.max(1, ...linhas.map((l) => l.valor));
   return (
@@ -83,19 +89,20 @@ function BarrasDeGasto({
       {linhas.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">{vazio}</p>
       ) : (
-        <ul className="mt-3 grid gap-2">
-          {linhas.map((l) => {
+        <ul key={chaveAnim} className="mt-3 grid gap-2">
+          {linhas.map((l, i) => {
             const conteudo = (
               <>
                 <span className="flex flex-wrap items-baseline justify-between gap-x-3">
-                  <span className="font-display text-sm font-bold text-navy">{l.rotulo}</span>
+                  {/* Linha escolhida: fundo navy-soft; no escuro o azul-lilás sobre ele dá 4,22:1, então usa o texto de item ativo. */}
+                  <span className={`font-display text-sm font-bold ${onEscolher && selecionada === l.chave ? "text-[color:var(--le-ativo)]" : "text-navy"}`}>{l.rotulo}</span>
                   <span className="text-sm font-semibold tabular-nums">{brl(l.valor)}</span>
                 </span>
                 <span className="block text-xs text-muted-foreground">
                   {plural(l.pedidos, "pedido", "pedidos")} · {plural(l.unidades, "unidade", "unidades")}
                 </span>
                 <span aria-hidden className="mt-1 block h-2 overflow-hidden rounded-full bg-secondary">
-                  <span className="block h-full rounded-full bg-sky" style={{ width: `${Math.max(2, (l.valor / maior) * 100)}%` }} />
+                  <span className="le-barra block h-full rounded-full bg-sky" style={{ width: `${larguraDaBarra(l.valor, maior)}%`, ...estiloEntrada(i, 40) }} />
                 </span>
               </>
             );
@@ -106,7 +113,7 @@ function BarrasDeGasto({
                     type="button"
                     aria-pressed={selecionada === l.chave}
                     onClick={() => onEscolher(l.chave)}
-                    className={`block min-h-11 w-full rounded-xl border px-3 py-2 text-left transition-colors hover:bg-navy-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky motion-reduce:transition-none ${
+                    className={`block min-h-11 w-full rounded-xl border px-3 py-2 text-left le-cor hover:bg-navy-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)] ${
                       selecionada === l.chave ? "border-transparent bg-navy-soft shadow-[0_0_0_2px_var(--sky)]" : "border-transparent"
                     }`}
                   >
@@ -148,12 +155,16 @@ export function Metricas() {
   const escolherArea = (chave: string) => setArea((a) => (a === chave ? undefined : chave));
 
   const Icone = v.sentido === "subiu" ? ArrowUpRight : v.sentido === "caiu" ? ArrowDownRight : Minus;
-  const textoVariacao =
+  // Polimento final: duas linhas curtas em vez de uma frase de 4 linhas. Linha 1 = sentido + percentual + mês; linha 2 = diferença em reais.
+  const mesAnterior = nomeDoMes(m.mesAnterior);
+  const sinal = v.sentido === "subiu" ? "+" : "−";
+  const linhaPercentual =
     v.sentido === "igual"
-      ? `Igual a ${nomeDoMes(m.mesAnterior)}`
-      : `${brl(v.diferenca)} ${v.sentido === "subiu" ? "a mais" : "a menos"} que em ${nomeDoMes(m.mesAnterior)}${
-          v.percentual !== null ? ` (${v.sentido === "subiu" ? "+" : "−"}${Math.abs(v.percentual).toLocaleString("pt-BR")}%)` : ""
-        }`;
+      ? `Igual a ${mesAnterior}`
+      : v.percentual !== null
+        ? `${sinal}${Math.abs(v.percentual).toLocaleString("pt-BR")}% vs. ${mesAnterior}`
+        : `vs. ${mesAnterior}`;
+  const linhaDiferenca = v.sentido === "igual" ? null : `${brl(v.diferenca)} ${v.sentido === "subiu" ? "a mais" : "a menos"}`;
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6" aria-labelledby="met-titulo">
@@ -192,8 +203,14 @@ export function Metricas() {
             <p className="flex items-start gap-1 font-semibold text-foreground">
               <Icone className="mt-0.5 size-4 shrink-0" aria-hidden />
               <span>
-                {textoVariacao}
-                {anteriorFechado ? " (total consolidado)" : ""}
+                {linhaPercentual}
+                {linhaDiferenca && (
+                  <span className="block">
+                    {linhaDiferenca}
+                    {anteriorFechado ? " · consolidado" : ""}
+                  </span>
+                )}
+                {!linhaDiferenca && anteriorFechado && <span className="block">consolidado</span>}
               </span>
             </p>
           </Kpi>
@@ -232,8 +249,9 @@ export function Metricas() {
               selecionada={area}
               onEscolher={escolherArea}
               vazio="Nenhum pedido encerrado neste mês."
+              chaveAnim={mes}
             />
-            <BarrasDeGasto titulo="Gasto por solicitante" linhas={m.porSolicitante} vazio="Nenhum pedido encerrado neste mês." />
+            <BarrasDeGasto titulo="Gasto por solicitante" linhas={m.porSolicitante} vazio="Nenhum pedido encerrado neste mês." chaveAnim={mes} />
           </div>
 
           <section className={`${CARTAO} mt-4`} aria-labelledby="met-lista">
@@ -256,17 +274,17 @@ export function Metricas() {
                 {area ? "Nenhum pedido encerrado desta área neste mês." : "Nenhum pedido encerrado neste mês."}
               </p>
             ) : (
-              <ul className="mt-3 divide-y">
-                {pedidos.map((p) => {
+              <ul key={`${mes}|${area ?? ""}`} className="mt-3 divide-y">
+                {pedidos.map((p, i) => {
                   const val = valorDoPedido(p);
                   const em = mesDoEncerramentoEm(p);
                   return (
-                    <li key={p.id} className="grid gap-x-4 gap-y-1 py-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                    <li key={p.id} style={estiloEntrada(i)} className="le-entra grid gap-x-4 gap-y-1 py-3 sm:grid-cols-[minmax(0,1fr)_auto]">
                       <div className="min-w-0">
                         <p className="font-display text-sm font-bold text-navy">
                           {p.id} · {nomeDaPessoa(p.solicitanteId)} <span className="font-normal text-foreground/80">· {p.areaSolicitante || "Sem área"}</span>
                         </p>
-                        <p className="truncate text-sm text-foreground/80">{p.finalidade}</p>
+                        <p title={p.finalidade} className="truncate text-sm text-foreground/80">{p.finalidade}</p>
                         <p className="text-xs text-muted-foreground">
                           {em ? `Encerrado em ${formatarInstante(em)} · ` : ""}
                           {plural(unidadesDoPedido(p), "unidade", "unidades")}
@@ -363,15 +381,15 @@ export function Metricas() {
                 <li key={t.brindeId} className="flex items-center gap-3">
                   <span className="w-5 text-right font-display text-sm font-bold text-muted-foreground tabular-nums">{i + 1}</span>
                   <div className="size-11 shrink-0 overflow-hidden rounded-xl border">
-                    <FotoBrinde src={b?.foto ?? ""} alt="" />
+                    <FotoBrinde src={b?.foto ?? ""} alt="" compacto />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-baseline justify-between gap-x-3">
-                      <span className="truncate font-display text-sm font-bold text-navy">{b?.nome ?? t.brindeId}</span>
+                      <span title={b?.nome ?? t.brindeId} className="truncate font-display text-sm font-bold text-navy">{b?.nome ?? t.brindeId}</span>
                       <span className="text-sm font-semibold tabular-nums">{plural(t.unidades, "unidade", "unidades")}</span>
                     </p>
                     <span aria-hidden className="mt-1 block h-2 overflow-hidden rounded-full bg-secondary">
-                      <span className="block h-full rounded-full bg-sky" style={{ width: `${Math.max(2, (t.unidades / maiorPop) * 100)}%` }} />
+                      <span className="le-barra block h-full rounded-full bg-sky" style={{ width: `${larguraDaBarra(t.unidades, maiorPop)}%`, ...estiloEntrada(i, 40) }} />
                     </span>
                   </div>
                 </li>

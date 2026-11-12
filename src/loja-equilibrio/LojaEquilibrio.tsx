@@ -5,7 +5,7 @@
 //
 // Casca: cabeçalho com âncora fixa + Seletor_de_Visao, rota interna e placeholders das telas (as reais vêm nas tarefas 4.x e 5.x).
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Cabecalho } from "./Cabecalho";
 import { CarrinhoPainel } from "./CarrinhoPainel";
 import { href, useRota, type Tela } from "./rota";
@@ -47,7 +47,7 @@ function Corpo({ t }: { t: Tela }) {
     default:
       return (
         <Placeholder titulo="Página não encontrada" texto="Esse endereço não existe na Digi Store.">
-          <a href={href("")} className="mt-5 inline-flex h-11 items-center rounded-full bg-navy px-5 font-display text-sm font-bold text-white">
+          <a href={href("")} className="mt-5 inline-flex h-11 items-center rounded-full bg-navy px-5 font-display text-sm font-bold text-navy-foreground">
             Ver brindes
           </a>
         </Placeholder>
@@ -67,11 +67,33 @@ function Casca() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tela]);
 
+  // Trocar de tela (A-06): volta ao topo sem animação e leva o foco ao <main>, para leitor de tela e teclado começarem no conteúdo novo.
+  // Filtros e buscas dentro da mesma tela não passam por aqui. A primeira montagem não rouba o foco.
+  const principal = useRef<HTMLElement>(null);
+  const primeira = useRef(true);
+  const aba = rota.t.tela === "gestao" ? rota.t.aba : "";
+  const slug = rota.t.tela === "brinde" ? rota.t.slug : "";
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    if (primeira.current) {
+      primeira.current = false;
+      return;
+    }
+    principal.current?.focus({ preventScroll: true });
+  }, [tela, aba, slug]);
+
   return (
     <div className="le-root">
       <Cabecalho rota={rota} />
-      <main>
-        <Corpo t={rota.t} />
+      <main ref={principal} tabIndex={-1} className="focus:outline-none">
+        {/*
+          Troca de tela e de visão (10.3): o conteúdo entra com fade + translateY(8px → 0). A chave é a rota (tela + slug + aba);
+          as pills Diretor/Gestão sempre navegam junto com a troca de visão, então a chave da rota já cobre a troca de visão
+          sem remontar duas vezes. O cabeçalho fica fora do bloco, então não anima.
+        */}
+        <div key={`${tela}|${slug}|${aba}`} className="le-tela">
+          <Corpo t={rota.t} />
+        </div>
       </main>
       <CarrinhoPainel />
     </div>

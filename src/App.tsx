@@ -1,125 +1,119 @@
 // PROTÓTIPO DESCARTÁVEL — não é o app. Fonte da verdade = Lovable.
-// UI limpa (sem banner) para refino visual — proveniência vive no código/README.
-// Protótipos ATIVOS (dois, com seletor): tela de Auth "liquid glass" e a loja DigiPlace.
-//   Decisões de design: .agents/tasks/prototipo-auth/ e .agents/tasks/digiplace-v4/.
-// Outros protótipos antigos (trocar aqui para rever):
-//   import { HubNovo } from "./hub/HubNovo";                // nova interface completa do Hub
-//   import { PlanejamentoAntiAI } from "./PlanejamentoAntiAI"; // até 2026-10-07
-//   import { MP01Page } from "./MP01Page";                 // devolver ao solicitante
+// UI limpa (sem banner) para refino visual — a proveniência vive no código e no README.
+// Este app tem dois protótipos (decisão do usuário, 2026-11-11: "apenas o Digistore e login"):
+//   - Digi Store (src/loja-equilibrio/), rota #/loja-equilibrio. É a rota padrão.
+//   - Login (src/auth-proto/), rota #/auth.
+// Decisão de design correspondente: .agents/tasks/loja-equilibrio/ e .kiro/specs/loja-equilibrio-digiplace/.
+// Os demais protótipos (DigiPlace, Digi Store antiga, Redes, Estúdio, Hub) foram removidos; o histórico
+// está no repositório publicado digisystem-prototipos.
 import { useEffect, useState } from "react";
 import { AuthProto } from "./auth-proto/AuthProto";
-import { LojaBrindes } from "./LojaBrindes";
-import { EstudioConteudo } from "./estudio-conteudo/EstudioConteudo";
-import { OpcaoDPopover } from "./estudio-conteudo/OpcaoDPopover";
-import { EstudioFinal } from "./estudio-final/EstudioFinal";
-import { LojaDigiStore } from "./loja-digi-store/LojaDigiStore";
-import { RedesGrade } from "./redes/RedesGrade";
 import { LojaEquilibrio } from "./loja-equilibrio/LojaEquilibrio";
 
-type ProtoId = "auth" | "digiplace" | "estudio-conteudo" | "estudio-opcao-d" | "estudio-final" | "loja-digi-store" | "loja-equilibrio" | "redes";
+type ProtoId = "auth" | "loja-equilibrio";
 
 const PROTOTIPOS: { id: ProtoId; rotulo: string }[] = [
-  { id: "estudio-conteudo", rotulo: "Estúdio — Conteúdo + Arte" },
-  { id: "estudio-opcao-d", rotulo: "Estúdio — Opção D (popover)" },
-  { id: "estudio-final", rotulo: "Estúdio — Visão final (produção)" },
-  { id: "digiplace", rotulo: "DigiPlace" },
-  { id: "loja-digi-store", rotulo: "Digi Store" },
-  { id: "redes", rotulo: "Redes (grade)" },
-  { id: "auth", rotulo: "Login (Auth)" },
+  { id: "loja-equilibrio", rotulo: "Digi Store" },
+  { id: "auth", rotulo: "Login" },
 ];
 
-// Lê a escolha do hash (#auth / #digiplace / #estudio-conteudo) para o link
-// carregar direto no protótipo certo. O hash router aceita "#/estudio-conteudo"
-// (com barra) e "#estudio-conteudo" — normalizamos removendo a barra inicial.
+const ROTA_PADRAO = "#/loja-equilibrio";
+
+// Primeiro segmento do hash: "#/loja-equilibrio/brinde/x?a=1" -> "loja-equilibrio". Hash vazio -> "".
+function raizDoHash(): string {
+  return window.location.hash.replace(/^#\/?/, "").split(/[/?]/)[0];
+}
+
+// Hash vazio não precisa de redirecionamento (a Digi Store é o padrão). Qualquer outra raiz que não seja
+// "auth" nem "loja-equilibrio" é um link antigo (#/loja-digi-store, #/digiplace, #/loja, #/loja-brindes,
+// #/redes, #/estudio-*...) e vai para a Digi Store. A raiz "loja-equilibrio" é válida, então não há laço.
+function ehLinkAntigo(): boolean {
+  const raiz = raizDoHash();
+  return raiz !== "" && raiz !== "auth" && raiz !== "loja-equilibrio";
+}
+
 function protoDoHash(): ProtoId {
-  // Primeiro segmento do hash: "loja-digi-store/pedidos?estado=vazio" -> "loja-digi-store".
-  const h = window.location.hash.replace(/^#\/?/, "").split(/[/?]/)[0];
-  if (h === "redes" || h === "redes-grade") return "redes";
-  if (h === "auth" || h === "digiplace" || h === "estudio-conteudo" || h === "estudio-opcao-d" || h === "estudio-final" || h === "loja-digi-store" || h === "loja-equilibrio") return h;
-  return "digiplace";
+  return raizDoHash() === "auth" ? "auth" : "loja-equilibrio";
+}
+
+// Antes da primeira renderização: troca o hash do link antigo sem criar entrada no histórico e sem
+// disparar hashchange. As telas leem o hash ao montar, então já veem a rota nova.
+function protoInicial(): ProtoId {
+  if (ehLinkAntigo()) {
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${ROTA_PADRAO}`);
+  }
+  return protoDoHash();
 }
 
 export function App() {
-  const [proto, setProto] = useState<ProtoId>(protoDoHash);
+  const [proto, setProto] = useState<ProtoId>(protoInicial);
 
   useEffect(() => {
-    const aoMudarHash = () => setProto(protoDoHash());
+    const aoMudarHash = () => {
+      if (ehLinkAntigo()) {
+        // location.replace dispara um novo hashchange, que cai no ramo normal abaixo.
+        window.location.replace(ROTA_PADRAO);
+        return;
+      }
+      setProto(protoDoHash());
+    };
     window.addEventListener("hashchange", aoMudarHash);
     return () => window.removeEventListener("hashchange", aoMudarHash);
   }, []);
 
   function escolher(id: ProtoId) {
-    window.location.hash = id;
-    setProto(id);
+    window.location.hash = id === "auth" ? "#/auth" : ROTA_PADRAO;
   }
 
   return (
     <>
-      {/* Seletor de protótipo — só do protótipo. Oculto na Digi Store para não cobrir o cabeçalho (trocar via hash). */}
-      {proto !== "loja-digi-store" && proto !== "loja-equilibrio" && proto !== "redes" && (
-      <div
-        style={{
-          position: "fixed",
-          top: 10,
-          left: "50%",
-          transform: "translateX(-50%)",
-          zIndex: 9999,
-          display: "flex",
-          gap: 4,
-          padding: 4,
-          borderRadius: 9999,
-          background: "rgba(17,24,39,0.72)",
-          backdropFilter: "blur(10px)",
-          border: "1px solid rgba(255,255,255,0.18)",
-          boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
-        }}
-      >
-        {PROTOTIPOS.map((p) => {
-          const ativo = proto === p.id;
-          return (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => escolher(p.id)}
-              style={{
-                border: "none",
-                cursor: "pointer",
-                borderRadius: 9999,
-                padding: "6px 14px",
-                fontFamily: "'Dosis', sans-serif",
-                fontWeight: 700,
-                fontSize: 13,
-                color: ativo ? "#36499b" : "rgba(255,255,255,0.85)",
-                background: ativo ? "#ffffff" : "transparent",
-                transition: "all .15s",
-              }}
-            >
-              {p.rotulo}
-            </button>
-          );
-        })}
-      </div>
+      {/* Seletor Digi Store | Login. Oculto na Digi Store, que tem cabeçalho próprio no topo. */}
+      {proto === "auth" && (
+        <div
+          style={{
+            position: "fixed",
+            top: 10,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 9999,
+            display: "flex",
+            gap: 4,
+            padding: 4,
+            borderRadius: 9999,
+            background: "rgba(17,24,39,0.72)",
+            backdropFilter: "blur(10px)",
+            border: "1px solid rgba(255,255,255,0.18)",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+          }}
+        >
+          {PROTOTIPOS.map((p) => {
+            const ativo = proto === p.id;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => escolher(p.id)}
+                style={{
+                  border: "none",
+                  cursor: "pointer",
+                  borderRadius: 9999,
+                  padding: "6px 14px",
+                  fontFamily: "'Dosis', sans-serif",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  color: ativo ? "#36499b" : "rgba(255,255,255,0.85)",
+                  background: ativo ? "#ffffff" : "transparent",
+                  transition: "all .15s",
+                }}
+              >
+                {p.rotulo}
+              </button>
+            );
+          })}
+        </div>
       )}
 
-      {proto === "auth" ? (
-        <AuthProto />
-      ) : proto === "estudio-conteudo" ? (
-        <EstudioConteudo />
-      ) : proto === "estudio-opcao-d" ? (
-        <OpcaoDPopover />
-      ) : proto === "estudio-final" ? (
-        <EstudioFinal />
-      ) : proto === "redes" ? (
-        <RedesGrade />
-      ) : proto === "loja-digi-store" ? (
-        <LojaDigiStore />
-      ) : proto === "loja-equilibrio" ? (
-        <LojaEquilibrio />
-      ) : (
-        <LojaBrindes />
-      )}
+      {proto === "auth" ? <AuthProto /> : <LojaEquilibrio />}
     </>
   );
 }
-
-

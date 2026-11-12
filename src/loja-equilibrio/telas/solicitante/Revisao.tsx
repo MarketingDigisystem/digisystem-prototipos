@@ -13,13 +13,14 @@ import { formatarDdMm, hojeDe, prazoExtraDasLinhas, validarDataDesejada } from "
 import { href } from "../../rota";
 import { useLoja } from "../../store";
 import type { Pedido } from "../../tipos";
-import { FotoBrinde } from "../../ui";
+import { estiloEntrada } from "../../movimento";
+import { FotoBrinde, Msg } from "../../ui";
 import { LinhaDoTempo } from "./LinhaDoTempo";
 
 const CAMPO =
-  "h-11 w-full rounded-2xl border bg-card px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky";
+  "h-11 w-full rounded-2xl border bg-card px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]";
 const BOTAO_PRIMARIO =
-  "inline-flex h-11 items-center justify-center rounded-full bg-navy px-6 font-display text-sm font-bold text-white transition-colors hover:bg-navy/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none";
+  "inline-flex h-11 items-center justify-center rounded-full bg-navy px-6 font-display text-sm font-bold text-navy-foreground le-btn hover:bg-navy/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)] disabled:cursor-not-allowed disabled:opacity-50";
 
 export function Revisao() {
   const loja = useLoja();
@@ -33,8 +34,8 @@ export function Revisao() {
   if (criado) {
     return (
       <section className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-        <div className="rounded-3xl border bg-card p-6 text-center shadow-card sm:p-8" role="status">
-          <CheckCircle2 className="mx-auto size-10 text-[color:var(--success-strong)]" aria-hidden />
+        <div className="le-entra rounded-3xl border bg-card p-6 text-center shadow-card sm:p-8" role="status">
+          <CheckCircle2 className="le-pop mx-auto size-10 text-[color:var(--success-strong)]" aria-hidden />
           <h1 className="mt-3 font-display text-3xl font-bold text-navy">Pedido enviado</h1>
           <p className="mt-2 text-sm text-foreground/85">
             O pedido {criado.id} está em Solicitada. O Marketing entra em contato se precisar alinhar algum detalhe.
@@ -45,7 +46,7 @@ export function Revisao() {
             </a>
             <a
               href={href("")}
-              className="inline-flex h-11 items-center rounded-full px-5 font-display text-sm font-bold text-navy hover:bg-navy-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky"
+              className="le-btn inline-flex h-11 items-center rounded-full px-5 font-display text-sm font-bold text-navy hover:bg-navy-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]"
             >
               Voltar aos brindes
             </a>
@@ -114,18 +115,18 @@ export function Revisao() {
         <div className="min-w-0 space-y-3">
           <h2 className="font-display text-lg font-bold text-navy">Itens</h2>
           <ul className="space-y-2">
-            {loja.carrinho.map((l) => {
+            {loja.carrinho.map((l, idx) => {
               const b = loja.brinde(l.brindeId);
               const v = b?.variacoes.find((x) => x.id === l.variacaoId);
               if (!b || !v) return null;
               const extra = [l.personalizacao?.texto, l.personalizacao?.arte ? `Arte: ${l.personalizacao.arte}` : ""].filter(Boolean).join(" · ");
               return (
-                <li key={l.chave} className="flex items-center gap-3 rounded-2xl border bg-card p-3 shadow-card">
+                <li key={l.chave} style={estiloEntrada(idx)} className="le-entra flex items-center gap-3 rounded-2xl border bg-card p-3 shadow-card">
                   <div className="size-16 shrink-0 overflow-hidden rounded-xl border">
-                    <FotoBrinde src={b.foto} alt={b.nome} />
+                    <FotoBrinde src={b.foto} alt={b.nome} compacto />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-display text-base font-bold text-navy">{b.nome}</p>
+                    <p title={b.nome} className="line-clamp-2 break-words font-display text-base font-bold leading-snug text-navy">{b.nome}</p>
                     <p className="text-xs text-muted-foreground">
                       {v.rotulo} · {l.qtd} {l.qtd === 1 ? "unidade" : "unidades"}
                     </p>
@@ -189,20 +190,20 @@ export function Revisao() {
               aria-describedby="data-erro"
             />
             {/* Faixa reservada: a mensagem e o botão "Usar dd/mm" aparecem sem mover o resto do formulário. */}
-            <div id="data-erro" className="mt-2 flex min-h-11 flex-wrap items-center gap-2 text-xs font-semibold text-destructive" role={validade.ok ? undefined : "alert"}>
+            <div id="data-erro" className="mt-2 flex min-h-[5.5rem] flex-wrap content-start items-center gap-2 text-xs sm:min-h-11 lg:min-h-[5.5rem] font-semibold text-[color:var(--destructive-strong)]" role={validade.ok ? undefined : "alert"}>
               {!validade.ok && (
-                <>
+                <div key={validade.erros.join(" ")} className="le-msg flex flex-wrap items-center gap-2">
                   <span>{validade.erros.join(" ")}</span>
                   {validade.sugestao && (
                     <button
                       type="button"
                       onClick={() => setData(validade.sugestao ?? "")}
-                      className="inline-flex h-11 items-center rounded-full bg-navy-soft px-4 font-display text-sm font-bold text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky"
+                      className="le-btn inline-flex h-11 items-center rounded-full bg-navy-soft px-4 font-display text-sm font-bold text-[color:var(--le-ativo)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]"
                     >
                       Usar {formatarDdMm(validade.sugestao)}
                     </button>
                   )}
-                </>
+                </div>
               )}
             </div>
           </div>
@@ -219,8 +220,8 @@ export function Revisao() {
             <button type="submit" className={`${BOTAO_PRIMARIO} w-full`}>
               Enviar pedido
             </button>
-            <p role={erro ? "alert" : undefined} className="mt-2 min-h-10 text-sm font-semibold text-destructive">
-              {erro}
+            <p role={erro ? "alert" : undefined} className="mt-2 min-h-5 text-sm font-semibold text-[color:var(--destructive-strong)]">
+              <Msg texto={erro} />
             </p>
           </div>
         </form>

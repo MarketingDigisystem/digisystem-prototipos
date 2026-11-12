@@ -8,8 +8,10 @@
 
 import { useMemo, useState } from "react";
 import { alertasMinimo, disponivel, esgotados, valorEmEstoque } from "../../regras";
+import { SAIDA_DIALOGO_MS, estiloEntrada } from "../../movimento";
 import { useLoja } from "../../store";
 import type { Brinde, Variacao } from "../../tipos";
+import { useSaidaAnimada } from "../../ui";
 import { BTN_PRIMARIO, BTN_SECUNDARIO, CAMPO, Campo, Dialogo, ErroInline, PILL, PILL_ATIVO, PILL_INATIVO, brl } from "./comum";
 
 interface Alvo {
@@ -19,7 +21,7 @@ interface Alvo {
 }
 
 function Kpi({ rotulo, valor, destaque }: { rotulo: string; valor: string; destaque?: "alerta" | "esgotado" }) {
-  const cor = destaque === "esgotado" ? "text-destructive" : destaque === "alerta" ? "text-[color:var(--warning-strong)]" : "text-navy";
+  const cor = destaque === "esgotado" ? "text-[color:var(--destructive-strong)]" : destaque === "alerta" ? "text-[color:var(--warning-strong)]" : "text-navy";
   return (
     <div className="rounded-2xl border bg-card p-4 shadow-card">
       <p className="text-xs font-semibold text-muted-foreground">{rotulo}</p>
@@ -28,8 +30,10 @@ function Kpi({ rotulo, valor, destaque }: { rotulo: string; valor: string; desta
   );
 }
 
-function DialogoMovimento({ alvo, onFechar }: { alvo: Alvo | null; onFechar: () => void }) {
+function DialogoMovimento({ alvo, onFechar: aoFechar }: { alvo: Alvo | null; onFechar: () => void }) {
   const loja = useLoja();
+  // Fechar passa pela saída animada (~140 ms): o diálogo só desmonta depois dela.
+  const { saindo, fechar: onFechar } = useSaidaAnimada(aoFechar, SAIDA_DIALOGO_MS);
   const [modo, setModo] = useState<"entrada" | "ajuste">(alvo?.modo ?? "entrada");
   const [qtd, setQtd] = useState("");
   const [nota, setNota] = useState("");
@@ -53,6 +57,7 @@ function DialogoMovimento({ alvo, onFechar }: { alvo: Alvo | null; onFechar: () 
   return (
     <Dialogo
       aberto
+      saindo={saindo}
       titulo={`${alvo.b.nome} · ${alvo.v.rotulo}`}
       onFechar={onFechar}
       rodape={
@@ -144,7 +149,7 @@ export function Estoque() {
 
       <div className="mt-5 overflow-hidden rounded-3xl border bg-card shadow-card">
         <div
-          className="hidden items-center gap-3 border-b bg-secondary/60 px-4 py-2 text-xs font-semibold text-muted-foreground md:grid md:grid-cols-[minmax(0,2fr)_repeat(4,72px)_130px_190px]"
+          className="hidden items-center gap-3 border-b bg-secondary/60 px-4 py-2 text-xs font-semibold text-muted-foreground lg:grid lg:grid-cols-[minmax(0,2fr)_repeat(4,72px)_130px_190px]"
           aria-hidden
         >
           <span>Brinde · variação</span>
@@ -156,16 +161,17 @@ export function Estoque() {
           <span className="text-right">Movimentar</span>
         </div>
         <ul>
-          {linhas.map(({ b, v }) => {
+          {linhas.map(({ b, v }, i) => {
             const k = `${b.id}/${v.id}`;
             const esgotado = zerados.has(k);
             const baixo = abaixo.has(k);
             return (
               <li
                 key={k}
-                className="grid grid-cols-4 items-center gap-x-3 gap-y-2 border-b px-4 py-3 last:border-b-0 md:grid-cols-[minmax(0,2fr)_repeat(4,72px)_130px_190px]"
+                style={estiloEntrada(i)}
+                className="le-entra grid grid-cols-4 items-center gap-x-3 gap-y-2 border-b px-4 py-3 last:border-b-0 lg:grid-cols-[minmax(0,2fr)_repeat(4,72px)_130px_190px]"
               >
-                <div className="col-span-4 min-w-0 md:col-span-1">
+                <div className="col-span-4 min-w-0 lg:col-span-1">
                   <p className="truncate font-display text-base font-bold text-navy">
                     {b.nome} <span className="font-normal text-foreground/80">· {v.rotulo}</span>
                   </p>
@@ -179,12 +185,12 @@ export function Estoque() {
                     ["Mínimo", v.minimo],
                   ] as const
                 ).map(([rot, n]) => (
-                  <p key={rot} className="text-right text-sm tabular-nums md:text-right">
-                    <span className="block text-[11px] font-semibold text-muted-foreground md:hidden">{rot}</span>
+                  <p key={rot} className="text-right text-sm tabular-nums lg:text-right">
+                    <span className="block text-[11px] font-semibold text-muted-foreground lg:hidden">{rot}</span>
                     <span className="font-semibold">{n}</span>
                   </p>
                 ))}
-                <p className="col-span-4 min-h-6 md:col-span-1">
+                <p className="col-span-4 min-h-6 lg:col-span-1">
                   {esgotado ? (
                     <span className="inline-flex h-6 items-center rounded-full bg-destructive px-2.5 font-display text-xs font-bold text-destructive-foreground">
                       Esgotado
@@ -197,11 +203,11 @@ export function Estoque() {
                     <span className="text-xs text-muted-foreground">Em dia</span>
                   )}
                 </p>
-                <div className="col-span-4 flex gap-2 md:col-span-1 md:justify-end">
-                  <button type="button" onClick={() => setAlvo({ b, v, modo: "entrada" })} className={`${BTN_SECUNDARIO} flex-1 md:flex-none`}>
+                <div className="col-span-4 flex gap-2 lg:col-span-1 lg:justify-end">
+                  <button type="button" onClick={() => setAlvo({ b, v, modo: "entrada" })} className={`${BTN_SECUNDARIO} flex-1 lg:flex-none`}>
                     Entrada
                   </button>
-                  <button type="button" onClick={() => setAlvo({ b, v, modo: "ajuste" })} className={`${BTN_SECUNDARIO} flex-1 md:flex-none`}>
+                  <button type="button" onClick={() => setAlvo({ b, v, modo: "ajuste" })} className={`${BTN_SECUNDARIO} flex-1 lg:flex-none`}>
                     Ajuste
                   </button>
                 </div>

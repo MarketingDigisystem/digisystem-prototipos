@@ -7,10 +7,12 @@
 
 import { useState } from "react";
 import { ROTULO_SUGESTAO, dataCurta } from "../../formato";
+import { estiloEntrada } from "../../movimento";
 import { useLoja } from "../../store";
+import { Msg } from "../../ui";
 
 const CAMPO =
-  "w-full rounded-2xl border bg-card px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky";
+  "w-full rounded-2xl border bg-card px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]";
 
 export function Sugerir() {
   const loja = useLoja();
@@ -70,15 +72,15 @@ export function Sugerir() {
           <div>
             <button
               type="submit"
-              className="inline-flex h-11 w-full items-center justify-center rounded-full bg-navy px-6 font-display text-sm font-bold text-white transition-colors hover:bg-navy/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky motion-reduce:transition-none"
+              className="inline-flex h-11 w-full items-center justify-center rounded-full bg-navy px-6 font-display text-sm font-bold text-navy-foreground le-btn hover:bg-navy/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]"
             >
               Enviar sugestão
             </button>
             <p
               role={msg ? (msg.ok ? "status" : "alert") : undefined}
-              className={`mt-2 min-h-10 text-sm font-semibold ${msg?.ok ? "text-[color:var(--success-strong)]" : "text-destructive"}`}
+              className={`mt-2 min-h-10 text-sm font-semibold ${msg?.ok ? "text-[color:var(--success-strong)]" : "text-[color:var(--destructive-strong)]"}`}
             >
-              {msg?.texto}
+              <Msg texto={msg?.texto} />
             </p>
           </div>
         </form>
@@ -89,11 +91,11 @@ export function Sugerir() {
             <p className="rounded-2xl bg-secondary p-4 text-sm text-muted-foreground">Você ainda não sugeriu nenhum brinde.</p>
           ) : (
             <ul className="space-y-2">
-              {minhas.map((s) => (
-                <li key={s.id} className="rounded-2xl border bg-card p-4 shadow-card">
+              {minhas.map((s, i) => (
+                <li key={s.id} style={estiloEntrada(i)} className="le-entra rounded-2xl border bg-card p-4 shadow-card">
                   <div className="flex items-start justify-between gap-3">
                     <p className="min-w-0 font-display text-base font-bold text-navy">{s.nome}</p>
-                    <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-navy-soft px-2.5 font-display text-xs font-bold text-navy">
+                    <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-navy-soft px-2.5 font-display text-xs font-bold text-[color:var(--le-ativo)]">
                       {ROTULO_SUGESTAO[s.estado]}
                     </span>
                   </div>

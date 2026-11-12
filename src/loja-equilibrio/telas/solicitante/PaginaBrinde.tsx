@@ -12,14 +12,14 @@ import { disponivel, selos, validarLinha } from "../../regras";
 import { href } from "../../rota";
 import { useLoja } from "../../store";
 import type { Brinde, OpcaoPersonalizacao } from "../../tipos";
-import { FotoBrinde, Selo } from "../../ui";
+import { FotoBrinde, Msg, Selo } from "../../ui";
 
 const PILL =
-  "inline-flex h-11 min-w-[56px] items-center justify-center rounded-full border border-transparent px-4 font-display text-sm font-bold transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky disabled:cursor-not-allowed disabled:opacity-50";
-const PILL_ATIVO = "bg-navy-soft text-navy shadow-[0_0_0_2px_var(--sky)]";
+  "inline-flex h-11 min-w-[56px] items-center justify-center rounded-full border border-transparent px-4 font-display text-sm font-bold le-cor focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)] disabled:cursor-not-allowed disabled:opacity-50";
+const PILL_ATIVO = "bg-navy-soft text-[color:var(--le-ativo)] shadow-[0_0_0_2px_var(--sky)]";
 const PILL_INATIVO = "bg-secondary text-foreground/80 hover:bg-navy-soft hover:text-navy";
 const CAMPO =
-  "h-11 w-full rounded-2xl border bg-card px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky";
+  "h-11 w-full rounded-2xl border bg-card px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]";
 
 const ROTULO_OPCAO: Record<OpcaoPersonalizacao, string> = {
   texto: "Texto",
@@ -29,7 +29,7 @@ const ROTULO_OPCAO: Record<OpcaoPersonalizacao, string> = {
 };
 
 const LINK_VOLTAR =
-  "inline-flex h-11 items-center gap-1 rounded-full px-3 text-sm font-semibold text-navy hover:bg-navy-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky";
+  "le-btn inline-flex h-11 items-center gap-1 rounded-full px-3 text-sm font-semibold text-navy hover:bg-navy-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]";
 
 function NaoEncontrado() {
   return (
@@ -39,7 +39,7 @@ function NaoEncontrado() {
         <p className="mt-1 text-sm text-muted-foreground">Esse brinde não existe ou foi desativado.</p>
         <a
           href={href("")}
-          className="mt-4 inline-flex h-11 items-center rounded-full bg-navy px-5 font-display text-sm font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky"
+          className="le-btn mt-4 inline-flex h-11 items-center rounded-full bg-navy px-5 font-display text-sm font-bold text-navy-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]"
         >
           Voltar aos brindes
         </a>
@@ -131,8 +131,8 @@ function Conteudo({ b }: { b: Brinde }) {
 
       <div className="grid gap-6 md:grid-cols-2 md:gap-8 lg:gap-12">
         {/* Foto grande; no desktop acompanha a rolagem. */}
-        <div className="md:sticky md:top-36 md:self-start">
-          <div className="relative overflow-hidden rounded-3xl border bg-white shadow-card">
+        <div className="md:sticky md:top-[11rem] md:self-start lg:top-36">
+          <div className="relative overflow-hidden rounded-3xl border bg-secondary shadow-card">
             <FotoBrinde src={b.foto} alt={b.nome} className={esgotado ? "opacity-60" : ""} />
             {(s.novidade || s.ultimasUnidades) && (
               <div className="absolute left-3 top-3 flex flex-col items-start gap-1">
@@ -267,14 +267,14 @@ function Conteudo({ b }: { b: Brinde }) {
                   <button
                     type="button"
                     onClick={adicionar}
-                    className="inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-navy px-6 font-display text-sm font-bold text-white transition-colors hover:bg-navy/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky motion-reduce:transition-none"
+                    className="le-btn inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-navy px-6 font-display text-sm font-bold text-navy-foreground hover:bg-navy/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]"
                   >
                     Adicionar ao carrinho
                   </button>
                 </div>
                 {/* Faixa reservada para a mensagem: aparecer ou sumir não move o campo nem o botão. */}
-                <p id="qtd-erro" role={erro ? "alert" : undefined} className="mt-2 min-h-10 text-sm font-semibold text-destructive sm:min-h-5">
-                  {erro}
+                <p id="qtd-erro" role={erro ? "alert" : undefined} className="mt-2 min-h-10 text-sm font-semibold text-[color:var(--destructive-strong)] sm:min-h-5">
+                  <Msg texto={erro} />
                 </p>
               </div>
             </>
@@ -286,7 +286,7 @@ function Conteudo({ b }: { b: Brinde }) {
               <div className="mt-3">
                 <a
                   href={href("")}
-                  className="inline-flex h-11 items-center rounded-full bg-navy px-5 font-display text-sm font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky"
+                  className="inline-flex h-11 items-center rounded-full bg-navy px-5 font-display text-sm font-bold text-navy-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]"
                 >
                   Voltar aos brindes
                 </a>

@@ -4,8 +4,11 @@
 // Decisão de design correspondente: .agents/tasks/loja-equilibrio/ (relatorio.md) e .kiro/specs/loja-equilibrio-digiplace/design.md (Req. 4).
 //
 // Linha do tempo das 4 etapas, com uma frase por etapa. Sem `atual`, todas aparecem como "a seguir" (usada na Revisão).
+// Movimento (10.3): ao carregar, os marcadores já alcançados aparecem em sequência curta (70 ms entre um e outro);
+// quando o estado muda, cor, fundo e anel das etapas fazem transição (sem mexer no tamanho).
 
 import { Check } from "lucide-react";
+import { estiloEntrada } from "../../movimento";
 import type { EstadoPedido, Evento } from "../../tipos";
 
 const ETAPAS: { estado: EstadoPedido; titulo: string; frase: string }[] = [
@@ -36,15 +39,16 @@ export function LinhaDoTempo({ atual, historico }: { atual?: EstadoPedido; histo
           <li
             key={e.estado}
             aria-current={corrente ? "step" : undefined}
-            className={`rounded-2xl border p-3 ${corrente ? "bg-navy-soft shadow-[0_0_0_2px_var(--sky)]" : "bg-card"} ${
+            className={`le-etapa rounded-2xl border p-3 ${corrente ? "bg-navy-soft shadow-[0_0_0_2px_var(--sky)]" : "bg-card"} ${
               interrompido && i > ate ? "opacity-50" : ""
             }`}
           >
             <div className="flex items-center gap-2">
               <span
                 aria-hidden
-                className={`grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold ${
-                  feita ? "bg-navy text-white" : corrente ? "bg-accent text-foreground" : "bg-secondary text-foreground/70"
+                style={i <= ate ? estiloEntrada(i, 70, 4) : undefined}
+                className={`le-marcador ${i <= ate ? "le-marcador-entra" : ""} grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold ${
+                  feita ? "bg-navy text-navy-foreground" : corrente ? "bg-accent text-[color:var(--on-accent)]" : "bg-secondary text-foreground/70"
                 }`}
               >
                 {feita ? <Check className="size-3.5" /> : i + 1}
