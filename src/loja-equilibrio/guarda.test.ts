@@ -266,3 +266,149 @@ describe("guarda 7: auth-proto não depende de loja-equilibrio", () => {
     }
   });
 });
+
+/* ================================================================ */
+/* Guardas 8 a 14 (tarefa 13.4)                                      */
+/* ================================================================ */
+
+import { razaoDeContraste } from "./formato";
+import {
+  COR_FAIXA_DESTAQUE, COR_FAIXA_ETIQUETA, COR_FAIXA_FUNDO, COR_FAIXA_SUBTITULO, COR_FAIXA_TEXTO,
+  CONTRASTE_MINIMO_TEXTO_GRANDE, CONTRASTE_MINIMO_TEXTO_PEQUENO,
+} from "./FaixaApresentacao";
+
+/** Minúsculas e sem acento, para a busca por "variac". */
+const semAcento = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/* ---- 8. Sem variação ---- */
+
+describe("guarda 8: o modelo não tem variações", () => {
+  // **Validates: Requirements 11.1, 11.2**
+  const alvo = arquivos.filter(
+    (a) =>
+      ["tipos.ts", "regras.ts", "mock.ts", "store.tsx", "CarrinhoPainel.tsx", "Cabecalho.tsx", "FaixaApresentacao.tsx", "PrecoBrinde.tsx"].includes(a) ||
+      a.startsWith("telas/"),
+  );
+
+  it("o conjunto verificado inclui as telas e os arquivos nomeados", () => {
+    expect(alvo.length).toBeGreaterThan(14);
+    expect(alvo).toEqual(expect.arrayContaining(["tipos.ts", "regras.ts", "mock.ts", "store.tsx", "PrecoBrinde.tsx"]));
+  });
+
+  it.each(alvo)("%s não contém 'variac' (nem em comentário)", (arquivo) => {
+    expect(semAcento(fontes[arquivo])).not.toContain("variac");
+  });
+});
+
+/* ---- 9. Textos da faixa ---- */
+
+describe("guarda 9: textos da Faixa_de_Apresentacao", () => {
+  // **Validates: Requirements 12.5, 12.7**
+  it("a faixa tem os textos literais", () => {
+    const faixa = fontes["FaixaApresentacao.tsx"];
+    for (const t of [
+      "DIGI STORE · BRINDES DIGISYSTEM",
+      "Brindes que levam a marca",
+      "para perto.",
+      "Escolha os itens, monte o carrinho e acompanhe cada solicitação em Pedidos.",
+    ]) expect(faixa).toContain(t);
+  });
+
+  it("LojaEquilibrio só renderiza a faixa para o Diretor na vitrine", () => {
+    const loja = fontes["LojaEquilibrio.tsx"];
+    const usos = loja.match(/<FaixaApresentacao\b/g) ?? [];
+    expect(usos).toHaveLength(1);
+    expect(loja).toMatch(/loja\.visao === "diretor" && tela === "vitrine" && <FaixaApresentacao\s*\/>/);
+  });
+
+  it("nenhum outro arquivo renderiza a faixa", () => {
+    const outros = arquivos.filter((a) => a !== "LojaEquilibrio.tsx" && /<FaixaApresentacao\b/.test(fontes[a]));
+    expect(outros).toEqual([]);
+  });
+});
+
+/* ---- 10. Sem quadros numerados ---- */
+
+describe("guarda 10: sem 'Como funciona' nem quadros 01/02/03", () => {
+  // **Validates: Requirements 12.6**
+  it.each(arquivos)("%s não exibe 'Como funciona', quadros numerados nem os títulos Escolha/Envie/Acompanhe", (arquivo) => {
+    const { exibivel } = varrer(fontes[arquivo]);
+    expect(exibivel).not.toMatch(/Como funciona/i);
+    expect(exibivel).not.toMatch(/["'`]0[123]["'`]|>\s*0[123]\s*</);
+    expect(exibivel).not.toMatch(/>\s*(?:Escolha|Envie|Acompanhe)\s*<|["'`](?:Escolha|Envie|Acompanhe)["'`]/);
+  });
+});
+
+/* ---- 11. Preço ---- */
+
+describe("guarda 11: preço visível ao diretor", () => {
+  // **Validates: Requirements 10.1, 10.5, 10.6**
+  it("PrecoBrinde tem os dois textos", () => {
+    const preco = fontes["PrecoBrinde.tsx"];
+    expect(preco).toContain("por unidade");
+    expect(preco).toContain("Valor avaliado conforme a quantidade");
+  });
+
+  it.each(["CarrinhoPainel.tsx", "telas/solicitante/Revisao.tsx", "telas/solicitante/Vitrine.tsx", "telas/solicitante/PaginaBrinde.tsx", "telas/solicitante/Pedidos.tsx"])(
+    "%s importa PrecoBrinde",
+    (arquivo) => {
+      expect(fontes[arquivo]).toMatch(/import\s*\{[^}]*\bPrecoBrinde\b[^}]*\}\s*from\s*"[^"]*PrecoBrinde"/);
+    },
+  );
+
+  it.each(["CarrinhoPainel.tsx", "telas/solicitante/Revisao.tsx"])("%s mostra 'Mais itens a avaliar' (direto ou via TotalPedido)", (arquivo) => {
+    const direto = fontes[arquivo].includes("Mais itens a avaliar");
+    const viaTotal = /<TotalPedido\b/.test(fontes[arquivo]) && fontes["TotalPedido.tsx"].includes("Mais itens a avaliar");
+    expect(direto || viaTotal).toBe(true);
+  });
+
+  it("as telas do diretor não leem saldo, reserva nem mínimo do brinde", () => {
+    for (const a of arquivos.filter((x) => x.startsWith("telas/solicitante/") || x === "CarrinhoPainel.tsx" || x === "PrecoBrinde.tsx")) {
+      expect({ a, le: /\.(?:saldo|reserva|minimo)\b/.test(varrer(fontes[a]).exibivel) }).toEqual({ a, le: false });
+    }
+  });
+});
+
+/* ---- 12. Faixa do seletor ---- */
+
+describe("guarda 12: seletor de visão na FaixaSeletor", () => {
+  // **Validates: Requirements 12.4**
+  it("FaixaSeletor existe e o Cabecalho não tem o seletor", () => {
+    expect(arquivos).toContain("FaixaSeletor.tsx");
+    expect(fontes["FaixaSeletor.tsx"]).toContain("Ver o protótipo como");
+    expect(fontes["Cabecalho.tsx"]).not.toContain("Ver o protótipo como");
+  });
+});
+
+/* ---- 13. Contraste ---- */
+
+describe("guarda 13: contraste da faixa sobre o navy", () => {
+  // **Validates: Requirements 12.8**
+  it("as constantes exportadas são exatamente as testadas", () => {
+    expect({
+      fundo: COR_FAIXA_FUNDO, texto: COR_FAIXA_TEXTO, destaque: COR_FAIXA_DESTAQUE, etiqueta: COR_FAIXA_ETIQUETA, subtitulo: COR_FAIXA_SUBTITULO,
+    }).toEqual({ fundo: "#36499b", texto: "#ffffff", destaque: "#ff7a3d", etiqueta: "#ffb88f", subtitulo: "#e8ecfb" });
+    const faixa = fontes["FaixaApresentacao.tsx"];
+    for (const hex of ["#36499b", "#ffffff", "#ff7a3d", "#ffb88f", "#e8ecfb"]) expect(faixa).toContain(`"${hex}"`);
+  });
+
+  it("título grande tem 3:1 ou mais e textos pequenos 4,5:1 ou mais", () => {
+    for (const cor of [COR_FAIXA_TEXTO, COR_FAIXA_DESTAQUE]) {
+      expect(razaoDeContraste(cor, COR_FAIXA_FUNDO)).toBeGreaterThanOrEqual(CONTRASTE_MINIMO_TEXTO_GRANDE);
+    }
+    for (const cor of [COR_FAIXA_ETIQUETA, COR_FAIXA_SUBTITULO, COR_FAIXA_TEXTO]) {
+      expect(razaoDeContraste(cor, COR_FAIXA_FUNDO)).toBeGreaterThanOrEqual(CONTRASTE_MINIMO_TEXTO_PEQUENO);
+    }
+  });
+});
+
+/* ---- 14. Movimento ---- */
+
+describe("guarda 14: movimento da faixa respeita prefers-reduced-motion", () => {
+  // **Validates: Requirements 12.7**
+  it("animate- e transition em FaixaApresentacao vêm com motion-reduce:", () => {
+    const { exibivel } = varrer(fontes["FaixaApresentacao.tsx"]);
+    if (/animate-|transition/.test(exibivel)) expect(exibivel).toContain("motion-reduce:");
+    else expect(exibivel).not.toMatch(/animate-|transition/);
+  });
+});

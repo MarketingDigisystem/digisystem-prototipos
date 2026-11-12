@@ -40,16 +40,13 @@ function Conta({ rotulo, valor, forte }: { rotulo: string; valor: string; forte?
 }
 
 function ItemMov({ m, rotuloExtra, indice }: { m: Movimentacao; rotuloExtra?: string; indice: number }) {
-  const { nomeDaPessoa, brinde } = useLoja();
-  const b = brinde(m.brindeId);
-  const v = b?.variacoes.find((x) => x.id === m.variacaoId);
+  const { nomeDaPessoa } = useLoja();
   return (
     <li style={estiloEntrada(indice)} className="le-entra grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 border-b px-4 py-3 last:border-b-0">
       <div className="min-w-0">
         <p className="text-sm font-semibold">
           {ROTULO[m.tipo]}
           {rotuloExtra ? <span className="font-normal text-foreground/80"> · {rotuloExtra}</span> : null}
-          <span className="font-normal text-foreground/80"> · {v?.rotulo ?? m.variacaoId}</span>
         </p>
         <p className="text-xs text-muted-foreground">
           {nomeDaPessoa(m.quem)} · {formatarInstante(m.em)}

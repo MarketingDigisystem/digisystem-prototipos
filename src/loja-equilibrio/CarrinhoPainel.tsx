@@ -8,7 +8,9 @@
 
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { brl } from "./formato";
+import { PrecoBrinde } from "./PrecoBrinde";
+import { precoDaLinhaDoCarrinho, totalDoCarrinho } from "./regras";
+import { TotalPedido } from "./TotalPedido";
 import { navegar } from "./rota";
 import { useLoja, type LinhaCarrinho } from "./store";
 import { SAIDA_ITEM_MS } from "./movimento";
@@ -20,14 +22,19 @@ const CAMPO =
 function ItemCarrinho({ l }: { l: LinhaCarrinho }) {
   const loja = useLoja();
   const b = loja.brinde(l.brindeId);
-  const v = b?.variacoes.find((x) => x.id === l.variacaoId);
   const [texto, setTexto] = useState(String(l.qtd));
   const [erro, setErro] = useState<string | null>(null);
+  // A quantidade pode mudar por fora (ex.: "Adicionar ao carrinho" do mesmo brinde na página dele); o campo acompanha.
+  // Só roda quando l.qtd muda, então digitar um valor inválido não é desfeito.
+  useEffect(() => {
+    setTexto((t) => (Number(t) === l.qtd ? t : String(l.qtd)));
+    setErro(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [l.qtd]);
   // Remover: o item recolhe a altura (grid 1fr → 0fr) e some com fade; só depois sai da lista.
   const { saindo, fechar: remover } = useSaidaAnimada(() => loja.remover(l.chave), SAIDA_ITEM_MS);
-  if (!b || !v) return null;
+  if (!b) return null;
 
-  const personalizavel = b.tipo === "personalizavel";
   const resumo = [l.personalizacao?.texto, l.personalizacao?.arte ? `Arte: ${l.personalizacao.arte}` : ""].filter(Boolean).join(" · ");
 
   const mudar = (valor: string) => {
@@ -49,11 +56,8 @@ function ItemCarrinho({ l }: { l: LinhaCarrinho }) {
             </div>
             <div className="min-w-0 flex-1">
               <p title={b.nome} className="line-clamp-2 break-words font-display text-base font-bold leading-snug text-navy">{b.nome}</p>
-              <p className="text-xs text-muted-foreground">{v.rotulo}</p>
               {resumo && <p className="mt-1 line-clamp-2 text-xs text-foreground/80">{resumo}</p>}
-              <p className="mt-1 text-sm font-semibold text-foreground">
-                {personalizavel ? "Valor avaliado conforme a quantidade" : `${brl((b.custoUnitario ?? 0) * l.qtd)} (${brl(b.custoUnitario ?? 0)} cada)`}
-              </p>
+              <PrecoBrinde modo="linha" linha={precoDaLinhaDoCarrinho(b, l.qtd)} className="mt-1" />
             </div>
           </div>
           <div className="mt-3 flex items-center justify-between gap-3">
@@ -103,15 +107,8 @@ export function CarrinhoPainel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aberto]);
 
-  // Total só das linhas de estoque; as personalizáveis contam como "a avaliar".
-  let total = 0;
-  let aAvaliar = 0;
-  for (const l of loja.carrinho) {
-    const b = loja.brinde(l.brindeId);
-    if (!b) continue;
-    if (b.tipo === "estoque") total += Math.round((b.custoUnitario ?? 0) * l.qtd * 100) / 100;
-    else aAvaliar += 1;
-  }
+  // Total só das linhas com preço; as personalizáveis sem orçamento ficam fora e contam como "a avaliar".
+  const { total, aAvaliar } = totalDoCarrinho(loja.dados.brindes, loja.carrinho);
 
   const revisar = () => {
     loja.abrirCarrinho(false);
@@ -162,14 +159,8 @@ export function CarrinhoPainel() {
         </div>
 
         <div className="shrink-0 space-y-3 border-t p-5">
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="font-display text-sm font-bold text-navy">Total dos brindes de estoque</span>
-            <span className="font-display text-lg font-bold text-navy tabular-nums">{brl(total)}</span>
-          </div>
-          {/* Faixa reservada: com ou sem aviso, o botão não se move. */}
-          <p className="min-h-5 text-xs font-semibold text-foreground/80">
-            {aAvaliar > 0 ? `${aAvaliar} ${aAvaliar === 1 ? "item" : "itens"} a avaliar` : ""}
-          </p>
+          {/* A faixa do aviso tem altura reservada: com ou sem aviso, o botão não se move. */}
+          <TotalPedido total={total} aAvaliar={aAvaliar} />
           <button
             type="button"
             disabled={loja.carrinho.length === 0}

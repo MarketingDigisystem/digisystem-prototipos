@@ -8,6 +8,7 @@
 import type {
   Brinde,
   DadosPedido,
+  DadosBrinde,
   Estado,
   EstadoPedido,
   HistoricoBrinde,
@@ -20,7 +21,6 @@ import type {
   Sugestao,
   Urgencia,
   ValorPedido,
-  Variacao,
 } from "./tipos";
 import { ROTULO_ESTADO } from "./formato";
 
@@ -98,14 +98,10 @@ export function mesAnteriorDe(mes: string): string {
 /* Estoque e selos                                                     */
 /* ------------------------------------------------------------------ */
 
-export function disponivel(v: Variacao): number {
-  return v.saldo - v.reserva;
-}
-
-/** Disponível total de um brinde de estoque. Personalizável não tem saldo próprio (0). */
-export function disponivelBrinde(b: Brinde): number {
+/** Saldo menos reserva do brinde. Personalizável não tem saldo próprio (0/0/0). */
+export function disponivel(b: Brinde): number {
   if (b.tipo !== "estoque") return 0;
-  return b.variacoes.reduce((s, v) => s + disponivel(v), 0);
+  return b.saldo - b.reserva;
 }
 
 export function ultimasUnidades(disp: number): boolean {
@@ -113,7 +109,7 @@ export function ultimasUnidades(disp: number): boolean {
 }
 
 export function selos(b: Brinde): { novidade: boolean; ultimasUnidades: boolean; indisponivel: boolean } {
-  const disp = disponivelBrinde(b);
+  const disp = disponivel(b);
   return {
     novidade: b.novidade,
     ultimasUnidades: b.tipo === "estoque" && ultimasUnidades(disp),
@@ -131,14 +127,13 @@ function inteiroPositivo(n: number): boolean {
   return Number.isInteger(n) && n >= 1;
 }
 
-export function validarLinha(b: Brinde, v: Variacao, qtd: number): Validacao {
+export function validarLinha(b: Brinde, qtd: number): Validacao {
   const erros: string[] = [];
   if (!b.ativo) erros.push("Este brinde não está ativo.");
-  if (!b.variacoes.some((x) => x.id === v.id)) erros.push("Variação não pertence a este brinde.");
   if (!inteiroPositivo(qtd)) {
     erros.push("Informe uma quantidade inteira, a partir de 1.");
   } else if (b.tipo === "estoque") {
-    const disp = disponivel(v);
+    const disp = disponivel(b);
     if (disp <= 0) erros.push("Indisponível no momento.");
     else if (qtd > disp) erros.push(`Só há ${disp} disponíveis.`);
   }
@@ -196,13 +191,6 @@ function achar<T extends { id: string }>(lista: T[], id: string, rotulo: string)
   return x;
 }
 
-function achaVariacao(d: Estado, brindeId: string, variacaoId: string): { b: Brinde; v: Variacao } {
-  const b = achar(d.brindes, brindeId, "Brinde");
-  const v = b.variacoes.find((x) => x.id === variacaoId);
-  if (!v) throw new Error("Variação não encontrada.");
-  return { b, v };
-}
-
 function registrar(
   d: Estado,
   m: Omit<Movimentacao, "id" | "em"> & { em?: string },
@@ -227,22 +215,20 @@ export function criarPedido(e: Estado, dados: DadosPedido, linhas: LinhaEntrada[
   const finalidade = textoObrigatorio(dados.finalidade, "Informe a finalidade do pedido.");
   if (linhas.length === 0) throw new Error("O carrinho está vazio.");
 
-  // Valida cada linha e a soma por variação de estoque (duas linhas da mesma variação somam).
-  const somaPorVariacao = new Map<string, number>();
+  // Valida cada linha e a soma por brinde de estoque (duas linhas do mesmo brinde somam).
+  const somaPorBrinde = new Map<string, number>();
   const novasLinhas: LinhaPedido[] = [];
   for (const l of linhas) {
-    const { b, v } = achaVariacao(d, l.brindeId, l.variacaoId);
-    const r = validarLinha(b, v, l.qtd);
+    const b = achar(d.brindes, l.brindeId, "Brinde");
+    const r = validarLinha(b, l.qtd);
     if (!r.ok) throw new Error(`${b.nome}: ${r.erros.join(" ")}`);
     if (b.tipo === "estoque") {
-      const chave = `${b.id}/${v.id}`;
-      const soma = (somaPorVariacao.get(chave) ?? 0) + l.qtd;
-      if (soma > disponivel(v)) throw new Error(`${b.nome}: só há ${disponivel(v)} disponíveis.`);
-      somaPorVariacao.set(chave, soma);
+      const soma = (somaPorBrinde.get(b.id) ?? 0) + l.qtd;
+      if (soma > disponivel(b)) throw new Error(`${b.nome}: só há ${disponivel(b)} disponíveis.`);
+      somaPorBrinde.set(b.id, soma);
     }
     novasLinhas.push({
       brindeId: b.id,
-      variacaoId: v.id,
       qtd: l.qtd,
       tipo: b.tipo,
       custoUnitarioNaHora: b.tipo === "estoque" ? b.custoUnitario : null,
@@ -257,7 +243,7 @@ export function criarPedido(e: Estado, dados: DadosPedido, linhas: LinhaEntrada[
   // Tudo válido: reserva só as linhas de estoque.
   for (const l of novasLinhas) {
     if (l.tipo !== "estoque") continue;
-    achaVariacao(d, l.brindeId, l.variacaoId).v.reserva += l.qtd;
+    achar(d.brindes, l.brindeId, "Brinde").reserva += l.qtd;
   }
 
   const pedido: Pedido = {
@@ -301,16 +287,16 @@ export function mudarEstado(
   if (alvo === "encerrada") {
     for (const l of p.linhas) {
       if (l.tipo !== "estoque") continue;
-      const { v } = achaVariacao(d, l.brindeId, l.variacaoId);
-      if (v.saldo < l.qtd || v.reserva < l.qtd) throw new Error("Estoque insuficiente para confirmar a retirada do pedido.");
-      v.saldo -= l.qtd;
-      v.reserva -= l.qtd;
-      registrar(d, { brindeId: l.brindeId, variacaoId: l.variacaoId, tipo: "saida", qtd: l.qtd, quem, pedidoId: p.id });
+      const b = achar(d.brindes, l.brindeId, "Brinde");
+      if (b.saldo < l.qtd || b.reserva < l.qtd) throw new Error("Estoque insuficiente para confirmar a retirada do pedido.");
+      b.saldo -= l.qtd;
+      b.reserva -= l.qtd;
+      registrar(d, { brindeId: l.brindeId, tipo: "saida", qtd: l.qtd, quem, pedidoId: p.id });
     }
   } else if (exigeMotivo) {
     for (const l of p.linhas) {
       if (l.tipo !== "estoque") continue;
-      achaVariacao(d, l.brindeId, l.variacaoId).v.reserva -= l.qtd;
+      achar(d.brindes, l.brindeId, "Brinde").reserva -= l.qtd;
     }
   }
 
@@ -375,12 +361,12 @@ export function ajustarQuantidadeLinha(
   }
   const notaLimpa = textoObrigatorio(nota, "Informe a nota do ajuste.");
   const l = linhaDoPedido(p, indiceLinha);
-  const { b, v } = achaVariacao(d, l.brindeId, l.variacaoId);
+  const b = achar(d.brindes, l.brindeId, "Brinde");
   if (!inteiroPositivo(novaQtd)) throw new Error("Informe uma quantidade inteira, a partir de 1.");
   if (l.tipo === "estoque") {
     const delta = novaQtd - l.qtd;
-    if (delta > disponivel(v)) throw new Error(`Só há ${disponivel(v)} disponíveis a mais.`);
-    v.reserva += delta;
+    if (delta > disponivel(b)) throw new Error(`Só há ${disponivel(b)} disponíveis a mais.`);
+    b.reserva += delta;
   } else {
     l.orcamentoAceito = false; // quantidade nova pede novo aceite
   }
@@ -397,17 +383,16 @@ export function ajustarQuantidadeLinha(
 export function registrarEntrada(
   e: Estado,
   brindeId: string,
-  variacaoId: string,
   qtd: number,
   quem: string,
   nota?: string,
 ): Estado {
   const d = clonar(e);
-  const { b, v } = achaVariacao(d, brindeId, variacaoId);
+  const b = achar(d.brindes, brindeId, "Brinde");
   if (b.tipo !== "estoque") throw new Error("Brinde personalizável não tem saldo próprio.");
   if (!inteiroPositivo(qtd)) throw new Error("Informe uma quantidade inteira, a partir de 1.");
-  v.saldo += qtd;
-  registrar(d, { brindeId, variacaoId, tipo: "entrada", qtd, quem, nota: nota?.trim() || undefined });
+  b.saldo += qtd;
+  registrar(d, { brindeId, tipo: "entrada", qtd, quem, nota: nota?.trim() || undefined });
   return d;
 }
 
@@ -415,19 +400,18 @@ export function registrarEntrada(
 export function registrarAjuste(
   e: Estado,
   brindeId: string,
-  variacaoId: string,
   delta: number,
   quem: string,
   nota: string,
 ): Estado {
   const d = clonar(e);
-  const { b, v } = achaVariacao(d, brindeId, variacaoId);
+  const b = achar(d.brindes, brindeId, "Brinde");
   if (b.tipo !== "estoque") throw new Error("Brinde personalizável não tem saldo próprio.");
   if (!Number.isInteger(delta) || delta === 0) throw new Error("Informe um ajuste inteiro diferente de zero.");
   const notaLimpa = textoObrigatorio(nota, "Informe o motivo do ajuste.");
-  if (v.saldo + delta < v.reserva) throw new Error("O saldo não pode ficar abaixo do que está reservado.");
-  v.saldo += delta;
-  registrar(d, { brindeId, variacaoId, tipo: "ajuste", qtd: delta, quem, nota: notaLimpa });
+  if (b.saldo + delta < b.reserva) throw new Error("O saldo não pode ficar abaixo do que está reservado.");
+  b.saldo += delta;
+  registrar(d, { brindeId, tipo: "ajuste", qtd: delta, quem, nota: notaLimpa });
   return d;
 }
 
@@ -438,27 +422,21 @@ export function registrarAjuste(
 export function reconstruirEstoque(brindes: Brinde[], pedidos: Pedido[], movs: Movimentacao[]): Brinde[] {
   const saldo = new Map<string, number>();
   const reserva = new Map<string, number>();
-  const chave = (b: string, v: string) => `${b}/${v}`;
   for (const m of movs) {
-    const k = chave(m.brindeId, m.variacaoId);
     const sinal = m.tipo === "saida" ? -m.qtd : m.qtd;
-    saldo.set(k, (saldo.get(k) ?? 0) + sinal);
+    saldo.set(m.brindeId, (saldo.get(m.brindeId) ?? 0) + sinal);
   }
   for (const p of pedidos) {
     if (!ESTADOS_ATIVOS.includes(p.estado)) continue;
     for (const l of p.linhas) {
       if (l.tipo !== "estoque") continue;
-      const k = chave(l.brindeId, l.variacaoId);
-      reserva.set(k, (reserva.get(k) ?? 0) + l.qtd);
+      reserva.set(l.brindeId, (reserva.get(l.brindeId) ?? 0) + l.qtd);
     }
   }
   return brindes.map((b) => ({
     ...b,
-    variacoes: b.variacoes.map((v) => ({
-      ...v,
-      saldo: saldo.get(chave(b.id, v.id)) ?? 0,
-      reserva: reserva.get(chave(b.id, v.id)) ?? 0,
-    })),
+    saldo: saldo.get(b.id) ?? 0,
+    reserva: reserva.get(b.id) ?? 0,
   }));
 }
 
@@ -488,29 +466,27 @@ function idUnico(base: string, usados: Set<string>): string {
 
 /**
  * Cria (id vazio ou desconhecido) ou edita um brinde. Saldo e reserva nunca vêm do formulário:
- * variação existente mantém os seus; variação nova nasce com saldo 0. Não remove variação com saldo ou reserva,
- * e o tipo não muda depois de criado.
+ * o brinde novo nasce com `saldoInicial` (gera a movimentação `saldo_inicial`) e reserva 0; editar não
+ * altera saldo nem reserva (entrada e ajuste ficam no Estoque). O tipo não muda depois de criado.
  */
-export function salvarBrinde(e: Estado, brinde: Brinde): Estado {
+export function salvarBrinde(e: Estado, brinde: DadosBrinde, quem = "gestao"): Estado {
   const d = clonar(e);
   const nome = textoObrigatorio(brinde.nome, "Informe o nome do brinde.");
   const categoria = textoObrigatorio(brinde.categoria, "Informe a categoria.");
   const foto = textoObrigatorio(brinde.foto, "Escolha uma foto.");
-  if (brinde.variacoes.length === 0) throw new Error("Cadastre ao menos uma variação.");
-  if (brinde.variacoes.some((v) => !v.rotulo.trim())) throw new Error("Toda variação precisa de um nome.");
-  if (brinde.variacoes.some((v) => !Number.isInteger(v.minimo) || v.minimo < 0)) {
-    throw new Error("O mínimo de cada variação é um número inteiro, a partir de 0.");
-  }
-  const rotulos = brinde.variacoes.map((v) => slugDe(v.rotulo));
-  if (new Set(rotulos).size !== rotulos.length) throw new Error("Há variações com o mesmo nome.");
 
   let prazoExtraDiasUteis: number | undefined;
   let custoUnitario: number | null = null;
+  let minimo = 0;
   if (brinde.tipo === "estoque") {
     if (brinde.custoUnitario === null || !Number.isFinite(brinde.custoUnitario) || brinde.custoUnitario <= 0) {
       throw new Error("Informe o custo unitário, maior que zero.");
     }
     custoUnitario = brinde.custoUnitario;
+    minimo = brinde.minimo ?? 0;
+    if (!Number.isInteger(minimo) || minimo < 0) throw new Error("O mínimo de estoque é um número inteiro, a partir de 0.");
+    const inicial = brinde.saldoInicial ?? 0;
+    if (!Number.isInteger(inicial) || inicial < 0) throw new Error("O saldo inicial é um número inteiro, a partir de 0.");
   } else {
     const prazo = brinde.prazoExtraDiasUteis ?? 0;
     if (!Number.isInteger(prazo) || prazo < 0) throw new Error("O prazo extra é um número inteiro de dias úteis, a partir de 0.");
@@ -520,21 +496,6 @@ export function salvarBrinde(e: Estado, brinde: Brinde): Estado {
   const existente = d.brindes.find((b) => b.id === brinde.id);
   if (existente && existente.tipo !== brinde.tipo) throw new Error("O tipo do brinde não muda depois de criado.");
 
-  const usadosV = new Set<string>(existente?.variacoes.map((v) => v.id));
-  const variacoes: Variacao[] = brinde.variacoes.map((v) => {
-    const antiga = existente?.variacoes.find((x) => x.id === v.id);
-    if (antiga) return { ...antiga, rotulo: v.rotulo.trim(), minimo: brinde.tipo === "estoque" ? v.minimo : 0 };
-    const id = idUnico(slugDe(v.rotulo), usadosV);
-    usadosV.add(id);
-    return { id, rotulo: v.rotulo.trim(), saldo: 0, reserva: 0, minimo: brinde.tipo === "estoque" ? v.minimo : 0 };
-  });
-  for (const antiga of existente?.variacoes ?? []) {
-    if (variacoes.some((v) => v.id === antiga.id)) continue;
-    if (antiga.saldo > 0 || antiga.reserva > 0) {
-      throw new Error(`A variação ${antiga.rotulo} tem saldo ou reserva e não pode ser removida.`);
-    }
-  }
-
   const campos = {
     nome,
     categoria,
@@ -542,7 +503,7 @@ export function salvarBrinde(e: Estado, brinde: Brinde): Estado {
     descricao: brinde.descricao.trim(),
     tipo: brinde.tipo,
     custoUnitario,
-    variacoes,
+    minimo,
     prazoExtraDiasUteis,
     opcoesPersonalizacao: brinde.tipo === "personalizavel" ? brinde.opcoesPersonalizacao : undefined,
     novidade: brinde.novidade,
@@ -553,7 +514,9 @@ export function salvarBrinde(e: Estado, brinde: Brinde): Estado {
     Object.assign(existente, campos);
   } else {
     const id = idUnico(slugDe(nome), new Set(d.brindes.flatMap((b) => [b.id, b.slug])));
-    d.brindes.push({ id, slug: id, ...campos });
+    const saldo = brinde.tipo === "estoque" ? (brinde.saldoInicial ?? 0) : 0;
+    d.brindes.push({ id, slug: id, ...campos, saldo, reserva: 0 });
+    if (saldo > 0) registrar(d, { brindeId: id, tipo: "saldo_inicial", qtd: saldo, quem });
   }
   return d;
 }
@@ -610,19 +573,60 @@ function centavos(reais: number): number {
   return Math.round(reais * 100);
 }
 
-function centavosDoPedido(p: Pedido): { centavos: number; aAvaliar: number } {
-  let total = 0;
+/* ---- Preço visível (Req. 10): fonte única do preço, usada pelas telas, pelo pedido e pelas métricas ---- */
+
+export type LinhaComPreco = Pick<LinhaPedido, "tipo" | "qtd" | "custoUnitarioNaHora" | "orcamentoAceito" | "orcamentoUnitario">;
+
+/**
+ * Preço unitário da linha, ou null quando ainda não há preço.
+ * Estoque: custo gravado na linha. Personalizável: só o orçamento ACEITO. Nunca devolve 0 por falta de preço.
+ */
+export function precoUnitarioLinha(l: LinhaComPreco): number | null {
+  if (l.tipo === "estoque") return l.custoUnitarioNaHora ?? null;
+  return l.orcamentoAceito && l.orcamentoUnitario !== undefined ? l.orcamentoUnitario : null;
+}
+
+/** Subtotal da linha em R$ (quantidade × preço unitário), ou null se a linha não tem preço. */
+export function subtotalDaLinha(l: LinhaComPreco): number | null {
+  const preco = precoUnitarioLinha(l);
+  return preco === null ? null : centavos(preco * l.qtd) / 100;
+}
+
+/** Soma só as linhas com preço; as demais contam em `aAvaliar` e ficam fora do total. */
+export function totalDasLinhas(linhas: LinhaComPreco[]): { total: number; aAvaliar: number } {
+  let cent = 0;
   let aAvaliar = 0;
-  for (const l of p.linhas) {
-    if (l.tipo === "estoque") {
-      total += centavos((l.custoUnitarioNaHora ?? 0) * l.qtd);
-    } else if (l.orcamentoAceito && l.orcamentoUnitario !== undefined) {
-      total += centavos(l.orcamentoUnitario * l.qtd);
-    } else {
-      aAvaliar += 1;
-    }
+  for (const l of linhas) {
+    const sub = subtotalDaLinha(l);
+    if (sub === null) aAvaliar += 1;
+    else cent += centavos(sub);
   }
-  return { centavos: total, aAvaliar };
+  return { total: cent / 100, aAvaliar };
+}
+
+/** Linha do Carrinho vista como linha de pedido, com o custo vigente do brinde (ainda sem orçamento). */
+export function precoDaLinhaDoCarrinho(b: Brinde, qtd: number): LinhaComPreco {
+  return {
+    tipo: b.tipo,
+    qtd,
+    custoUnitarioNaHora: b.tipo === "estoque" ? b.custoUnitario : null,
+    orcamentoAceito: false,
+  };
+}
+
+/** Total do Carrinho; linhas de brinde desconhecido são ignoradas. */
+export function totalDoCarrinho(brindes: Brinde[], carrinho: { brindeId: string; qtd: number }[]): { total: number; aAvaliar: number } {
+  const linhas: LinhaComPreco[] = [];
+  for (const l of carrinho) {
+    const b = brindes.find((x) => x.id === l.brindeId);
+    if (b) linhas.push(precoDaLinhaDoCarrinho(b, l.qtd));
+  }
+  return totalDasLinhas(linhas);
+}
+
+function centavosDoPedido(p: Pedido): { centavos: number; aAvaliar: number } {
+  const t = totalDasLinhas(p.linhas);
+  return { centavos: centavos(t.total), aAvaliar: t.aAvaliar };
 }
 
 /** Valor do pedido em R$. Linha personalizável só entra com orçamento aceito; as demais contam em `aAvaliar`. */
@@ -727,7 +731,7 @@ export function mesDoEncerramentoEm(p: Pedido): string | undefined {
 }
 
 /** Diferença do gasto contra o mês anterior. `percentual` é null quando o anterior é zero. */
-export function variacaoDeGasto(m: Pick<Metricas, "gasto" | "gastoMesAnterior">): {
+export function mudancaDeGasto(m: Pick<Metricas, "gasto" | "gastoMesAnterior">): {
   sentido: "subiu" | "caiu" | "igual";
   diferenca: number;
   percentual: number | null;
@@ -751,36 +755,35 @@ export function popularidade(e: Estado): { brindeId: string; unidades: number }[
 
 export interface AlertaEstoque {
   brindeId: string;
-  variacaoId: string;
   rotulo: string;
   disponivel: number;
   minimo: number;
 }
 
-function variacoesDeEstoque(e: Estado): { b: Brinde; v: Variacao }[] {
-  return e.brindes
-    .filter((b) => b.tipo === "estoque" && b.ativo)
-    .flatMap((b) => b.variacoes.map((v) => ({ b, v })));
+function brindesDeEstoque(e: Estado): Brinde[] {
+  return e.brindes.filter((b) => b.tipo === "estoque" && b.ativo);
+}
+
+function alertaDe(b: Brinde): AlertaEstoque {
+  return { brindeId: b.id, rotulo: b.nome, disponivel: disponivel(b), minimo: b.minimo };
 }
 
 /** Disponível acima de zero, mas abaixo do mínimo (só para a gestão). */
 export function alertasMinimo(e: Estado): AlertaEstoque[] {
-  return variacoesDeEstoque(e)
-    .filter(({ v }) => v.minimo > 0 && disponivel(v) > 0 && disponivel(v) < v.minimo)
-    .map(({ b, v }) => ({ brindeId: b.id, variacaoId: v.id, rotulo: `${b.nome} · ${v.rotulo}`, disponivel: disponivel(v), minimo: v.minimo }));
+  return brindesDeEstoque(e)
+    .filter((b) => b.minimo > 0 && disponivel(b) > 0 && disponivel(b) < b.minimo)
+    .map(alertaDe);
 }
 
 export function esgotados(e: Estado): AlertaEstoque[] {
-  return variacoesDeEstoque(e)
-    .filter(({ v }) => disponivel(v) <= 0)
-    .map(({ b, v }) => ({ brindeId: b.id, variacaoId: v.id, rotulo: `${b.nome} · ${v.rotulo}`, disponivel: disponivel(v), minimo: v.minimo }));
+  return brindesDeEstoque(e)
+    .filter((b) => disponivel(b) <= 0)
+    .map(alertaDe);
 }
 
 /** Saldo físico × custo unitário dos brindes de estoque ativos. */
 export function valorEmEstoque(e: Estado): number {
-  return (
-    variacoesDeEstoque(e).reduce((s, { b, v }) => s + centavos((b.custoUnitario ?? 0) * v.saldo), 0) / 100
-  );
+  return brindesDeEstoque(e).reduce((s, b) => s + centavos((b.custoUnitario ?? 0) * b.saldo), 0) / 100;
 }
 
 /** Histórico de um brinde: saldo inicial + entradas − saídas ± ajustes deve fechar com o saldo atual. */
@@ -793,8 +796,8 @@ export function historicoBrinde(e: Estado, brindeId: string): HistoricoBrinde {
   const saidas = soma("saida");
   const ajustes = soma("ajuste");
   const saldoCalculado = saldoInicial + entradas - saidas + ajustes;
-  const saldoAtual = b.variacoes.reduce((s, v) => s + v.saldo, 0);
-  const reserva = b.variacoes.reduce((s, v) => s + v.reserva, 0);
+  const saldoAtual = b.saldo;
+  const reserva = b.reserva;
   return {
     brindeId,
     saldoInicial,
@@ -818,4 +821,52 @@ export function urgencia(dataDesejada: string | undefined, hoje: string): Urgenc
   if (dias <= 2) return "urgente";
   if (dias <= 7) return "proxima";
   return "normal";
+}
+
+/* ------------------------------------------------------------------ */
+/* Vitrine: categorias, busca e ordenação (Req. 12.9 a 12.11)          */
+/* ------------------------------------------------------------------ */
+
+export type OrdemVitrine = "novos" | "custo" | "az";
+
+export const CATEGORIA_TODOS = "Todos";
+
+/** Texto sem acento e em minúsculas, para a busca por nome. */
+export function normalizarBusca(t: string): string {
+  return t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+/** Contador de brindes ativos por categoria, na ordem em que as categorias aparecem; "Todos" soma todas. */
+export function contarPorCategoria(brindes: Brinde[]): { categoria: string; total: number }[] {
+  const mapa = new Map<string, number>();
+  let todos = 0;
+  for (const b of brindes) {
+    if (!b.ativo) continue;
+    todos += 1;
+    mapa.set(b.categoria, (mapa.get(b.categoria) ?? 0) + 1);
+  }
+  return [{ categoria: CATEGORIA_TODOS, total: todos }, ...Array.from(mapa, ([categoria, total]) => ({ categoria, total }))];
+}
+
+/** Brindes ativos filtrados por categoria e busca por nome, já ordenados. O tamanho do resultado é o "N brindes" da vitrine. */
+export function filtrarBrindes(brindes: Brinde[], categoria: string, busca: string, ordem: OrdemVitrine): Brinde[] {
+  const ativos = brindes.filter((b) => b.ativo);
+  const q = normalizarBusca(busca);
+  const filtrada = ativos.filter(
+    (b) => (categoria === CATEGORIA_TODOS || b.categoria === categoria) && (!q || normalizarBusca(b.nome).includes(q)),
+  );
+  const l = [...filtrada];
+  if (ordem === "az") return l.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  if (ordem === "custo") {
+    // Personalizável não tem custo unitário: vai para o fim, em ordem alfabética.
+    return l.sort((a, b) => {
+      if (a.custoUnitario === null && b.custoUnitario === null) return a.nome.localeCompare(b.nome, "pt-BR");
+      if (a.custoUnitario === null) return 1;
+      if (b.custoUnitario === null) return -1;
+      return a.custoUnitario - b.custoUnitario;
+    });
+  }
+  // Mais novos: novidades primeiro; dentro de cada grupo, o mais recente do catálogo (último no mock) primeiro.
+  const idx = new Map(ativos.map((b, i) => [b.id, i]));
+  return l.sort((a, b) => Number(b.novidade) - Number(a.novidade) || (idx.get(b.id)! - idx.get(a.id)!));
 }

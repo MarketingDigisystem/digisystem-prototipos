@@ -3,21 +3,20 @@
 // Fonte da verdade = Lovable. Regenerar (não remendar) se o real mudar.
 // Decisão de design correspondente: .agents/tasks/loja-equilibrio/ (relatorio.md) e .kiro/specs/loja-equilibrio-digiplace/design.md (Req. 2).
 //
-// Vitrine: grade direta, sem banner. Uma linha com categorias + busca + ordem; a contagem e o vazio ficam ABAIXO dela,
+// Vitrine (a Faixa_de_Apresentacao fica na casca): uma linha com categorias (com contador) + busca + ordem; a contagem e o vazio ficam ABAIXO dela,
 // numa faixa de altura reservada, então nada que o filtro faz desloca os controles (âncora fixa).
 
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
-import { disponivelBrinde, selos } from "../../regras";
+import { CATEGORIA_TODOS, contarPorCategoria, disponivel, filtrarBrindes, selos, type OrdemVitrine } from "../../regras";
 import { href } from "../../rota";
 import { useLoja } from "../../store";
 import type { Brinde } from "../../tipos";
 import { estiloEntrada } from "../../movimento";
+import { PrecoBrinde } from "../../PrecoBrinde";
 import { FotoBrinde, Selo, useFaixaRolante } from "../../ui";
 
-type Ordem = "novos" | "custo" | "az";
-
-const ORDENS: { id: Ordem; rotulo: string }[] = [
+const ORDENS: { id: OrdemVitrine; rotulo: string }[] = [
   { id: "novos", rotulo: "Mais novos" },
   { id: "custo", rotulo: "Menor custo" },
   { id: "az", rotulo: "A a Z" },
@@ -25,36 +24,15 @@ const ORDENS: { id: Ordem; rotulo: string }[] = [
 
 const PILL =
   "inline-flex h-11 shrink-0 items-center justify-center rounded-full border border-transparent px-4 font-display text-sm font-bold whitespace-nowrap le-cor focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]";
-const PILL_ATIVO = "bg-navy-soft text-[color:var(--le-ativo)] shadow-[0_0_0_2px_var(--sky)]";
-const PILL_INATIVO = "text-foreground/80 hover:bg-navy-soft hover:text-navy";
+/** Ativa: navy cheio com texto branco. Inativa: branca com borda. Mesma caixa nos dois estados (a borda existe nos dois). */
+const PILL_ATIVO = "border-navy bg-navy text-white";
+const PILL_INATIVO = "border-input bg-card text-foreground/80 hover:border-navy/40 hover:text-navy";
 const CAMPO =
   "h-11 rounded-full border bg-card px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]";
 
-/** Texto sem acento e em minúsculas, para a busca por nome. */
-function normalizar(t: string): string {
-  return t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-}
-
-function ordenar(lista: Brinde[], ordem: Ordem): Brinde[] {
-  const l = [...lista];
-  if (ordem === "az") return l.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
-  if (ordem === "custo") {
-    // Personalizável não tem custo unitário: vai para o fim, em ordem alfabética.
-    return l.sort((a, b) => {
-      if (a.custoUnitario === null && b.custoUnitario === null) return a.nome.localeCompare(b.nome, "pt-BR");
-      if (a.custoUnitario === null) return 1;
-      if (b.custoUnitario === null) return -1;
-      return a.custoUnitario - b.custoUnitario;
-    });
-  }
-  // Mais novos: novidades primeiro; a ordem do catálogo (mais recente por último no mock) se mantém dentro de cada grupo, invertida.
-  const idx = new Map(lista.map((b, i) => [b.id, i]));
-  return l.sort((a, b) => Number(b.novidade) - Number(a.novidade) || (idx.get(b.id)! - idx.get(a.id)!));
-}
-
 function Cartao({ b, indice }: { b: Brinde; indice: number }) {
   const s = selos(b);
-  const disp = disponivelBrinde(b);
+  const disp = disponivel(b);
   // li: entrada escalonada (fade) e elevação no hover por transform; a sombra de hover vive num pseudo-elemento do li (.le-cartao), fora do overflow do link.
   return (
     <li className="le-cartao le-entra" style={estiloEntrada(indice)}>
@@ -74,15 +52,15 @@ function Cartao({ b, indice }: { b: Brinde; indice: number }) {
         <div className="flex flex-1 flex-col gap-1 p-3 sm:p-4">
           <h3 className="font-display text-base font-bold leading-snug text-navy sm:text-lg">{b.nome}</h3>
           <p className="text-xs text-muted-foreground">{b.tipo === "estoque" ? "Brinde em estoque" : "Personalizável"}</p>
-          <p className="mt-auto pt-2 text-sm font-semibold text-foreground">
-            {b.tipo === "personalizavel" ? (
-              <span>Valor avaliado conforme a quantidade</span>
-            ) : s.indisponivel ? (
-              <span className="text-muted-foreground">Indisponível no momento</span>
-            ) : (
-              <span>{disp} disponíveis</span>
+          {/* Bloco de preço com altura reservada (duas linhas): estoque e personalizável ocupam o mesmo espaço no cartão. */}
+          <div className="mt-auto min-h-10 pt-2">
+            <PrecoBrinde modo="unitario" brinde={b} />
+            {b.tipo === "estoque" && (
+              <p className="text-sm font-semibold leading-5 text-foreground">
+                {s.indisponivel ? <span className="text-muted-foreground">Indisponível no momento</span> : <span>{disp} disponíveis</span>}
+              </p>
             )}
-          </p>
+          </div>
         </div>
       </a>
     </li>
@@ -91,53 +69,49 @@ function Cartao({ b, indice }: { b: Brinde; indice: number }) {
 
 export function Vitrine() {
   const { dados } = useLoja();
-  const [categoria, setCategoria] = useState("Todos");
+  const [categoria, setCategoria] = useState(CATEGORIA_TODOS);
   const [busca, setBusca] = useState("");
-  const [ordem, setOrdem] = useState<Ordem>("novos");
+  const [ordem, setOrdem] = useState<OrdemVitrine>("novos");
   const refCategorias = useFaixaRolante<HTMLDivElement>(categoria);
 
-  const ativos = useMemo(() => dados.brindes.filter((b) => b.ativo), [dados.brindes]);
-  const categorias = useMemo(() => ["Todos", ...Array.from(new Set(ativos.map((b) => b.categoria)))], [ativos]);
+  // Os contadores não dependem da busca nem da categoria ativa: contam os brindes ativos de cada categoria.
+  const categorias = useMemo(() => contarPorCategoria(dados.brindes), [dados.brindes]);
+  const lista = useMemo(() => filtrarBrindes(dados.brindes, categoria, busca, ordem), [dados.brindes, categoria, busca, ordem]);
 
-  const lista = useMemo(() => {
-    const q = normalizar(busca);
-    const filtrada = ativos.filter(
-      (b) => (categoria === "Todos" || b.categoria === categoria) && (!q || normalizar(b.nome).includes(q)),
-    );
-    return ordenar(filtrada, ordem);
-  }, [ativos, categoria, busca, ordem]);
-
-  const filtrando = categoria !== "Todos" || busca.trim() !== "";
+  const filtrando = categoria !== CATEGORIA_TODOS || busca.trim() !== "";
   const limpar = () => {
-    setCategoria("Todos");
+    setCategoria(CATEGORIA_TODOS);
     setBusca("");
   };
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6" aria-labelledby="vitrine-titulo">
-      <h1 id="vitrine-titulo" className="sr-only">
-        Brindes
-      </h1>
+      <h2 id="vitrine-titulo" className="sr-only">
+        Brindes disponíveis
+      </h2>
 
-      {/* Linha única e discreta: categorias à esquerda (rola se faltar espaço), busca e ordem fixas à direita. */}
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      {/* Linha única: categorias com contador à esquerda (rolam dentro da própria linha), busca e ordenação à direita. */}
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-4">
         <div ref={refCategorias} role="group" aria-label="Categorias" className="le-nav le-rola -mx-1 -my-1 min-w-0 flex-1 overflow-x-auto px-1 py-1">
-          <div className="flex w-max items-center gap-1">
+          <div className="flex w-max items-center gap-2">
             {categorias.map((c) => (
               <button
-                key={c}
+                key={c.categoria}
                 type="button"
-                aria-pressed={categoria === c}
-                onClick={() => setCategoria(c)}
-                className={`${PILL} ${categoria === c ? PILL_ATIVO : PILL_INATIVO}`}
+                aria-pressed={categoria === c.categoria}
+                onClick={() => setCategoria(c.categoria)}
+                className={`${PILL} gap-2 ${categoria === c.categoria ? PILL_ATIVO : PILL_INATIVO}`}
               >
-                {c}
+                {c.categoria}
+                <span className={`text-xs font-semibold tabular-nums ${categoria === c.categoria ? "text-white/80" : "text-muted-foreground"}`}>
+                  {c.total}
+                </span>
               </button>
             ))}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <label className="relative block min-w-0 flex-1 md:w-52 md:flex-none">
+          <label className="relative block min-w-0 flex-1 md:w-56 md:flex-none">
             <span className="sr-only">Buscar brinde pelo nome</span>
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
             <input
@@ -152,7 +126,7 @@ export function Vitrine() {
             <span className="sr-only">Ordenar por</span>
             <select
               value={ordem}
-              onChange={(e) => setOrdem(e.target.value as Ordem)}
+              onChange={(e) => setOrdem(e.target.value as OrdemVitrine)}
               className={`${CAMPO} w-[140px] font-semibold text-navy`}
             >
               {ORDENS.map((o) => (
@@ -168,7 +142,6 @@ export function Vitrine() {
       {/* Faixa de altura reservada: a contagem muda, a linha acima e a grade não pulam por causa dela. */}
       <p className="flex min-h-9 items-center text-xs text-muted-foreground" aria-live="polite">
         {lista.length === 1 ? "1 brinde" : `${lista.length} brindes`}
-        {categoria !== "Todos" ? ` em ${categoria}` : ""}
       </p>
 
       {lista.length === 0 ? (

@@ -7,9 +7,9 @@
 // Saldo e reserva nunca são editados aqui: entram pelo Estoque (entrada/ajuste), para a conta continuar fechando.
 
 import { useState } from "react";
-import { Check, Plus, Trash2 } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { useLoja } from "../../store";
-import type { Brinde, TipoBrinde, Variacao } from "../../tipos";
+import type { Brinde, DadosBrinde, TipoBrinde } from "../../tipos";
 import { SAIDA_DIALOGO_MS, estiloEntrada } from "../../movimento";
 import { FotoBrinde, Msg, useSaidaAnimada } from "../../ui";
 import { BTN_PRIMARIO, BTN_SECUNDARIO, CAMPO, Campo, Dialogo, ErroInline, PILL, PILL_ATIVO, PILL_INATIVO } from "./comum";
@@ -32,7 +32,9 @@ function rascunhoNovo(): Brinde {
     foto: FOTOS[0],
     descricao: "",
     custoUnitario: null,
-    variacoes: [{ id: "", rotulo: "", saldo: 0, reserva: 0, minimo: 0 }],
+    saldo: 0,
+    reserva: 0,
+    minimo: 0,
     novidade: false,
     ativo: true,
   };
@@ -45,16 +47,19 @@ function FormularioBrinde({ inicial, onFechar: aoFechar }: { inicial: Brinde; on
   const editando = inicial.id !== "";
   const [b, setB] = useState<Brinde>(() => structuredClone(inicial));
   const [custo, setCusto] = useState(inicial.custoUnitario !== null ? String(inicial.custoUnitario) : "");
+  // Saldo inicial só vale ao criar (gera a movimentação de saldo inicial); depois o saldo muda pelo Estoque.
+  const [saldoInicial, setSaldoInicial] = useState("0");
   const [erro, setErro] = useState<string | null>(null);
   const personalizavel = b.tipo === "personalizavel";
 
-  const mudarVariacao = (i: number, parte: Partial<Variacao>) =>
-    setB((x) => ({ ...x, variacoes: x.variacoes.map((v, j) => (j === i ? { ...v, ...parte } : v)) }));
-
   const salvar = () => {
-    const pronto: Brinde = personalizavel
+    const pronto: DadosBrinde = personalizavel
       ? { ...b, custoUnitario: null, prazoExtraDiasUteis: b.prazoExtraDiasUteis ?? 0 }
-      : { ...b, custoUnitario: custo.trim() === "" ? null : Number(custo.replace(",", ".")) };
+      : {
+          ...b,
+          custoUnitario: custo.trim() === "" ? null : Number(custo.replace(",", ".")),
+          saldoInicial: editando ? undefined : saldoInicial.trim() === "" ? 0 : Number(saldoInicial),
+        };
     const r = loja.salvarBrinde(pronto);
     if (r.ok) onFechar();
     else setErro(r.motivo);
@@ -166,63 +171,31 @@ function FormularioBrinde({ inicial, onFechar: aoFechar }: { inicial: Brinde; on
             </Campo>
           </div>
         ) : (
-          <Campo rotulo="Custo unitário (R$)">
-            <input inputMode="decimal" value={custo} onChange={(e) => setCusto(e.target.value)} placeholder="0,00" className={`${CAMPO} sm:max-w-[200px]`} />
-          </Campo>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Campo rotulo="Custo unitário (R$)">
+              <input inputMode="decimal" value={custo} onChange={(e) => setCusto(e.target.value)} placeholder="0,00" className={CAMPO} />
+            </Campo>
+            {editando ? (
+              <Campo rotulo="Saldo atual" dica="Muda por entrada ou ajuste, em Estoque.">
+                <input value={b.saldo} readOnly aria-readonly className={`${CAMPO} bg-secondary`} />
+              </Campo>
+            ) : (
+              <Campo rotulo="Saldo inicial">
+                <input type="number" min={0} step={1} value={saldoInicial} onChange={(e) => setSaldoInicial(e.target.value)} className={CAMPO} />
+              </Campo>
+            )}
+            <Campo rotulo="Mínimo de estoque">
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={b.minimo}
+                onChange={(e) => setB({ ...b, minimo: Number(e.target.value) })}
+                className={CAMPO}
+              />
+            </Campo>
+          </div>
         )}
-
-        <fieldset>
-          <legend className="mb-1 text-xs font-semibold text-foreground/80">Variações</legend>
-          <ul className="grid gap-2">
-            {b.variacoes.map((v, i) => (
-              <li key={i} className="flex items-end gap-2">
-                <Campo rotulo={i === 0 ? "Nome da variação" : ""}>
-                  <input
-                    aria-label={`Nome da variação ${i + 1}`}
-                    value={v.rotulo}
-                    onChange={(e) => mudarVariacao(i, { rotulo: e.target.value })}
-                    placeholder="Ex.: Azul, M, Única"
-                    className={CAMPO}
-                  />
-                </Campo>
-                {!personalizavel && (
-                  <div className="w-24 shrink-0">
-                    <Campo rotulo={i === 0 ? "Mínimo" : ""}>
-                      <input
-                        aria-label={`Mínimo da variação ${i + 1}`}
-                        type="number"
-                        min={0}
-                        value={v.minimo}
-                        onChange={(e) => mudarVariacao(i, { minimo: Number(e.target.value) })}
-                        className={CAMPO}
-                      />
-                    </Campo>
-                  </div>
-                )}
-                {editando && v.id && !personalizavel && (
-                  <p className="hidden w-20 shrink-0 pb-3 text-xs text-muted-foreground sm:block">saldo {v.saldo}</p>
-                )}
-                <button
-                  type="button"
-                  aria-label={`Remover variação ${i + 1}`}
-                  disabled={b.variacoes.length === 1}
-                  onClick={() => setB({ ...b, variacoes: b.variacoes.filter((_, j) => j !== i) })}
-                  className="grid size-11 shrink-0 place-items-center rounded-full text-foreground/70 hover:bg-navy-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)] disabled:opacity-40"
-                >
-                  <Trash2 className="size-4" aria-hidden />
-                </button>
-              </li>
-            ))}
-          </ul>
-          <button
-            type="button"
-            onClick={() => setB({ ...b, variacoes: [...b.variacoes, { id: "", rotulo: "", saldo: 0, reserva: 0, minimo: 0 }] })}
-            className={`${BTN_SECUNDARIO} mt-2 gap-2`}
-          >
-            <Plus className="size-4" aria-hidden />
-            Adicionar variação
-          </button>
-        </fieldset>
 
         <label className="flex min-h-11 cursor-pointer items-center gap-3">
           <input type="checkbox" checked={b.novidade} onChange={(e) => setB({ ...b, novidade: e.target.checked })} className="size-5 accent-[var(--navy)]" />
@@ -268,8 +241,7 @@ export function Cadastro() {
             <div className="min-w-0 flex-1 basis-48">
               <p className="font-display text-base font-bold text-navy">{b.nome}</p>
               <p className="text-xs text-muted-foreground">
-                {b.categoria} · {b.tipo === "estoque" ? "Em estoque" : "Personalizável"} · {b.variacoes.length}{" "}
-                {b.variacoes.length === 1 ? "variação" : "variações"}
+                {b.categoria} · {b.tipo === "estoque" ? "Em estoque" : "Personalizável"}
                 {b.novidade ? " · Novidade" : ""}
               </p>
               {erro?.id === b.id && (

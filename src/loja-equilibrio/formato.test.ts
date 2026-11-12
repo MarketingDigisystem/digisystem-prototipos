@@ -4,7 +4,11 @@
 // Decisão de design correspondente: .kiro/specs/loja-equilibrio-digiplace/design.md (Logo exclusivo da Digi Store, Req. 9.3).
 
 import { describe, expect, it } from "vitest";
-import { urlDoAsset } from "./formato";
+import { razaoDeContraste, urlDoAsset } from "./formato";
+import {
+  COR_FAIXA_DESTAQUE, COR_FAIXA_ETIQUETA, COR_FAIXA_FUNDO, COR_FAIXA_SUBTITULO, COR_FAIXA_TEXTO,
+  CONTRASTE_MINIMO_TEXTO_GRANDE, CONTRASTE_MINIMO_TEXTO_PEQUENO,
+} from "./FaixaApresentacao";
 
 describe("urlDoAsset", () => {
   it("usa a base '/' sem barra dupla", () => {
@@ -21,5 +25,30 @@ describe("urlDoAsset", () => {
 
   it("ignora barra inicial no nome do arquivo", () => {
     expect(urlDoAsset("/logo-branco.png", "/digisystem-prototipos/")).toBe("/digisystem-prototipos/digistore/logo-branco.png");
+  });
+});
+
+describe("razaoDeContraste (WCAG)", () => {
+  it("preto sobre branco dá 21:1 e a razão é simétrica", () => {
+    expect(razaoDeContraste("#000000", "#ffffff")).toBeCloseTo(21, 5);
+    expect(razaoDeContraste("#36499b", "#ffffff")).toBeCloseTo(razaoDeContraste("#ffffff", "#36499b"), 10);
+  });
+
+  it("o laranja puro #ff6d2d não atinge 3:1 sobre o navy (por isso o destaque usa outro tom)", () => {
+    expect(razaoDeContraste("#ff6d2d", COR_FAIXA_FUNDO)).toBeLessThan(CONTRASTE_MINIMO_TEXTO_GRANDE);
+  });
+});
+
+describe("contraste da Faixa_de_Apresentacao sobre o navy (Req. 12.8)", () => {
+  // **Validates: Requirements 12.8**
+  it("texto grande (título em negrito, 'para perto.') tem pelo menos 3:1", () => {
+    expect(razaoDeContraste(COR_FAIXA_DESTAQUE, COR_FAIXA_FUNDO)).toBeGreaterThanOrEqual(CONTRASTE_MINIMO_TEXTO_GRANDE);
+    expect(razaoDeContraste(COR_FAIXA_TEXTO, COR_FAIXA_FUNDO)).toBeGreaterThanOrEqual(CONTRASTE_MINIMO_TEXTO_GRANDE);
+  });
+
+  it("texto pequeno (etiqueta e subtítulo) tem pelo menos 4,5:1", () => {
+    for (const cor of [COR_FAIXA_ETIQUETA, COR_FAIXA_SUBTITULO, COR_FAIXA_TEXTO]) {
+      expect(razaoDeContraste(cor, COR_FAIXA_FUNDO)).toBeGreaterThanOrEqual(CONTRASTE_MINIMO_TEXTO_PEQUENO);
+    }
   });
 });

@@ -8,6 +8,8 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { Cabecalho } from "./Cabecalho";
 import { CarrinhoPainel } from "./CarrinhoPainel";
+import { FaixaApresentacao } from "./FaixaApresentacao";
+import { FaixaSeletor } from "./FaixaSeletor";
 import { urlDoAsset } from "./formato";
 import { href, useRota, type Tela } from "./rota";
 import { Gestao } from "./telas/gestao/Gestao";
@@ -86,7 +88,10 @@ function Casca() {
 
   return (
     <div className="le-root">
+      <FaixaSeletor />
       <Cabecalho rota={rota} />
+      {/* Faixa de apresentação: só na vitrine do Diretor (Req. 12.5 e 12.7). */}
+      {loja.visao === "diretor" && tela === "vitrine" && <FaixaApresentacao />}
       <main ref={principal} tabIndex={-1} className="focus:outline-none">
         {/*
           Troca de tela e de visão (10.3): o conteúdo entra com fade + translateY(8px → 0). A chave é a rota (tela + slug + aba);

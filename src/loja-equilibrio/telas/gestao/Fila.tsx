@@ -55,7 +55,6 @@ function textoValor(p: Pedido): string {
 function LinhaDetalhe({ pedido, indice, linha }: { pedido: Pedido; indice: number; linha: LinhaPedido }) {
   const loja = useLoja();
   const b = loja.brinde(linha.brindeId);
-  const v = b?.variacoes.find((x) => x.id === linha.variacaoId);
   const [valor, setValor] = useState(linha.orcamentoUnitario !== undefined ? String(linha.orcamentoUnitario) : "");
   const [qtd, setQtd] = useState(String(linha.qtd));
   const [nota, setNota] = useState("");
@@ -79,7 +78,7 @@ function LinhaDetalhe({ pedido, indice, linha }: { pedido: Pedido; indice: numbe
         <div className="min-w-0">
           <p className="font-display text-base font-bold text-navy">{b?.nome ?? linha.brindeId}</p>
           <p className="text-xs text-muted-foreground">
-            {v?.rotulo ?? linha.variacaoId} · {linha.tipo === "estoque" ? "em estoque" : "personalizável"}
+            {linha.tipo === "estoque" ? "Em estoque" : "Personalizável"}
           </p>
         </div>
         <p className="shrink-0 text-right text-sm font-semibold">

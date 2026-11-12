@@ -8,7 +8,9 @@
 
 import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { ROTULO_ESTADO, brl, dataCurta, dataHora } from "../../formato";
+import { ROTULO_ESTADO, dataCurta, dataHora } from "../../formato";
+import { PrecoBrinde } from "../../PrecoBrinde";
+import { TotalPedido, textoTotal } from "../../TotalPedido";
 import { TRANSICOES, formatarDdMm, valorDoPedido } from "../../regras";
 import { href } from "../../rota";
 import { useLoja } from "../../store";
@@ -125,11 +127,12 @@ export function Pedidos() {
                         {v.aAvaliar > 0 ? ` · ${v.aAvaliar} a avaliar` : ""}
                       </p>
                       {/* Abaixo de sm o selo de estado desce para a linha de baixo, sem tomar largura do título. */}
-                      <span className="mt-1 inline-flex sm:hidden">
+                      <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 sm:hidden">
                         <Estado e={p.estado} />
+                        <span className="text-sm font-semibold tabular-nums">{textoTotal(v.valor, v.aAvaliar)}</span>
                       </span>
                     </div>
-                    <span className="hidden shrink-0 text-sm font-semibold tabular-nums sm:inline">{brl(v.valor)}</span>
+                    <span className="hidden shrink-0 text-sm font-semibold tabular-nums sm:inline">{textoTotal(v.valor, v.aAvaliar)}</span>
                     <span className="hidden sm:inline-flex">
                       <Estado e={p.estado} />
                     </span>
@@ -202,7 +205,6 @@ function Detalhe({ p, voltar }: { p: Pedido; voltar: () => void }) {
       <ul className="space-y-2">
         {p.linhas.map((l, i) => {
           const b = loja.brinde(l.brindeId);
-          const variacao = b?.variacoes.find((x) => x.id === l.variacaoId);
           const extra = [l.personalizacao?.texto, l.personalizacao?.arte ? `Arte: ${l.personalizacao.arte}` : ""].filter(Boolean).join(" · ");
           const personalizavel = l.tipo === "personalizavel";
           const temOrcamento = l.orcamentoUnitario !== undefined;
@@ -212,18 +214,13 @@ function Detalhe({ p, voltar }: { p: Pedido; voltar: () => void }) {
                 <div className="min-w-0">
                   <p className="font-display text-base font-bold text-navy">{b?.nome ?? "Brinde"}</p>
                   <p className="text-xs text-muted-foreground">
-                    {variacao?.rotulo ?? ""} · {l.qtd} {l.qtd === 1 ? "unidade" : "unidades"}
+                    {l.qtd} {l.qtd === 1 ? "unidade" : "unidades"}
                   </p>
                   {extra && <p className="mt-1 text-xs text-foreground/80">{extra}</p>}
                   {l.notaAjuste && <p className="mt-1 text-xs text-foreground/80">Ajuste do Marketing: {l.notaAjuste}</p>}
                 </div>
-                <p className="text-sm font-semibold tabular-nums text-foreground">
-                  {!personalizavel
-                    ? brl((l.custoUnitarioNaHora ?? 0) * l.qtd)
-                    : temOrcamento
-                      ? `${brl((l.orcamentoUnitario ?? 0) * l.qtd)} (${brl(l.orcamentoUnitario ?? 0)} cada)`
-                      : "A avaliar"}
-                </p>
+                {/* Estoque: custo gravado na linha. Personalizável: orçamento aceito; antes disso, sem valor em reais. */}
+                <PrecoBrinde modo="linha" linha={l} className="max-w-[12rem] text-right" />
               </div>
               {personalizavel && temOrcamento && !l.orcamentoAceito && (
                 <div className="mt-3 flex flex-wrap items-center gap-3 rounded-2xl bg-secondary p-3">
@@ -245,13 +242,9 @@ function Detalhe({ p, voltar }: { p: Pedido; voltar: () => void }) {
           );
         })}
       </ul>
-      <div className="mt-3 flex items-baseline justify-between gap-3 rounded-2xl bg-secondary px-4 py-3">
-        <span className="font-display text-sm font-bold text-navy">Valor do pedido</span>
-        <span className="font-display text-lg font-bold text-navy tabular-nums">{brl(v.valor)}</span>
+      <div className="mt-3">
+        <TotalPedido total={v.valor} aAvaliar={v.aAvaliar} rotulo="Valor do pedido" className="rounded-2xl bg-secondary px-4 py-3" />
       </div>
-      <p className="mt-1 min-h-5 text-xs font-semibold text-foreground/80">
-        {v.aAvaliar > 0 ? `${v.aAvaliar} ${v.aAvaliar === 1 ? "item" : "itens"} a avaliar, fora do valor acima.` : ""}
-      </p>
 
       {/* Faixa de feedback com altura reservada. */}
       <p

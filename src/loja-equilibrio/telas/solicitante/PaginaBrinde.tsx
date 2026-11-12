@@ -8,16 +8,14 @@
 
 import { useMemo, useState } from "react";
 import { ChevronLeft } from "lucide-react";
-import { disponivel, selos, validarLinha } from "../../regras";
+import { brl } from "../../formato";
+import { PrecoBrinde } from "../../PrecoBrinde";
+import { disponivel, precoDaLinhaDoCarrinho, precoUnitarioLinha, selos, subtotalDaLinha, validarLinha } from "../../regras";
 import { href } from "../../rota";
 import { useLoja } from "../../store";
 import type { Brinde, OpcaoPersonalizacao } from "../../tipos";
 import { FotoBrinde, Msg, Selo } from "../../ui";
 
-const PILL =
-  "inline-flex h-11 min-w-[56px] items-center justify-center rounded-full border border-transparent px-4 font-display text-sm font-bold le-cor focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)] disabled:cursor-not-allowed disabled:opacity-50";
-const PILL_ATIVO = "bg-navy-soft text-[color:var(--le-ativo)] shadow-[0_0_0_2px_var(--sky)]";
-const PILL_INATIVO = "bg-secondary text-foreground/80 hover:bg-navy-soft hover:text-navy";
 const CAMPO =
   "h-11 w-full rounded-2xl border bg-card px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]";
 
@@ -61,9 +59,6 @@ function Conteudo({ b }: { b: Brinde }) {
   const s = selos(b);
   const personalizavel = b.tipo === "personalizavel";
 
-  // Estoque: começa na primeira variação com saldo livre. Personalizável: primeira do tamanho/cor.
-  const inicial = b.variacoes.find((v) => personalizavel || disponivel(v) > 0) ?? b.variacoes[0];
-  const [variacaoId, setVariacaoId] = useState(inicial.id);
   const [qtdTexto, setQtdTexto] = useState("1");
   const [tocou, setTocou] = useState(false);
   const [texto, setTexto] = useState("");
@@ -72,17 +67,18 @@ function Conteudo({ b }: { b: Brinde }) {
   const [logo, setLogo] = useState("");
   const [erroEnvio, setErroEnvio] = useState<string | null>(null);
 
-  const variacao = b.variacoes.find((v) => v.id === variacaoId) ?? inicial;
   const qtd = Number(qtdTexto);
-  const validacao = useMemo(
-    () => validarLinha(b, variacao, qtdTexto.trim() === "" ? Number.NaN : qtd),
-    [b, variacao, qtd, qtdTexto],
-  );
+  const validacao = useMemo(() => validarLinha(b, qtdTexto.trim() === "" ? Number.NaN : qtd), [b, qtd, qtdTexto]);
   const esgotado = !personalizavel && s.indisponivel;
   // A mensagem aparece depois de a pessoa mexer na quantidade ou tentar adicionar; nunca antes.
   const erro = erroEnvio ?? (tocou && !validacao.ok ? validacao.erros.join(" ") : null);
 
   const opcoes = b.opcoesPersonalizacao ?? [];
+
+  // Subtotal da quantidade escolhida, só com quantidade inteira a partir de 1 e preço conhecido (estoque).
+  const linhaPreco = precoDaLinhaDoCarrinho(b, qtd);
+  const precoUnit = Number.isInteger(qtd) && qtd >= 1 ? precoUnitarioLinha(linhaPreco) : null;
+  const subtotal = precoUnit !== null ? subtotalDaLinha(linhaPreco) : null;
 
   const adicionar = () => {
     setTocou(true);
@@ -103,15 +99,13 @@ function Conteudo({ b }: { b: Brinde }) {
         arte: partesArte.join(", ") || undefined,
       };
     }
-    const r = loja.adicionar(b.id, variacao.id, qtd, personalizacao);
+    const r = loja.adicionar(b.id, qtd, personalizacao);
     if (!r.ok) {
       setErroEnvio(r.motivo);
       return;
     }
     loja.abrirCarrinho(true);
   };
-
-  const tituloVariacao = b.variacoes.length > 1 || personalizavel ? (personalizavel ? "Tamanho ou modelo" : "Variação") : null;
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
@@ -149,13 +143,14 @@ function Conteudo({ b }: { b: Brinde }) {
             </p>
             <h1 className="mt-1 font-display text-3xl font-bold leading-tight text-navy sm:text-4xl">{b.nome}</h1>
             <p className="mt-3 max-w-prose text-base text-foreground/85">{b.descricao}</p>
-            <p className="mt-3 text-sm font-semibold text-foreground">
-              {personalizavel ? (
-                "Valor avaliado conforme a quantidade"
-              ) : esgotado ? (
-                <span className="text-muted-foreground">Indisponível no momento</span>
-              ) : null}
-            </p>
+            <div className="mt-3">
+              <PrecoBrinde modo="unitario" brinde={b} destaque />
+              {/* Subtotal pela quantidade escolhida; a linha tem altura reservada e some o texto (não o espaço) sem preço ou sem quantidade válida. */}
+              <p className="min-h-5 text-sm leading-5 text-foreground/80" aria-live="polite">
+                {subtotal !== null && precoUnit !== null ? `${qtd} × ${brl(precoUnit)} = ${brl(subtotal)}` : ""}
+              </p>
+              {esgotado && <p className="text-sm font-semibold text-muted-foreground">Indisponível no momento</p>}
+            </div>
           </header>
 
           {personalizavel && (
@@ -169,41 +164,7 @@ function Conteudo({ b }: { b: Brinde }) {
 
           {!esgotado && (
             <>
-              {tituloVariacao && (
-                <div>
-                  <h2 className="mb-2 font-display text-sm font-bold text-navy">{tituloVariacao}</h2>
-                  <div role="group" aria-label={tituloVariacao} className="flex flex-wrap gap-2">
-                    {b.variacoes.map((v) => {
-                      const livre = disponivel(v);
-                      const semSaldo = !personalizavel && livre <= 0;
-                      return (
-                        <button
-                          key={v.id}
-                          type="button"
-                          disabled={semSaldo}
-                          aria-pressed={variacaoId === v.id}
-                          onClick={() => {
-                            setVariacaoId(v.id);
-                            setErroEnvio(null);
-                          }}
-                          className={`${PILL} ${variacaoId === v.id ? PILL_ATIVO : PILL_INATIVO}`}
-                        >
-                          {v.rotulo}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {/* Linha reservada: o texto muda com a variação, o espaço não. */}
-                  {!personalizavel && (
-                    <p className="mt-2 min-h-5 text-sm text-foreground/80" aria-live="polite">
-                      {disponivel(variacao) > 0 ? `${disponivel(variacao)} disponíveis nesta variação` : "Indisponível nesta variação"}
-                    </p>
-                  )}
-                </div>
-              )}
-              {!tituloVariacao && !personalizavel && (
-                <p className="text-sm font-semibold text-foreground">{disponivel(variacao)} disponíveis</p>
-              )}
+              {!personalizavel && <p className="text-sm font-semibold text-foreground">{disponivel(b)} disponíveis</p>}
 
               {personalizavel && opcoes.length > 0 && (
                 <fieldset className="grid gap-3 rounded-2xl border p-4">

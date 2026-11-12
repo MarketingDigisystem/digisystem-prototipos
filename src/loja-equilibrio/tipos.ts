@@ -15,14 +15,6 @@ export interface Pessoa {
   area?: string;
 }
 
-export interface Variacao {
-  id: string;
-  rotulo: string;
-  saldo: number;
-  reserva: number;
-  minimo: number;
-}
-
 export interface Brinde {
   id: string;
   slug: string;
@@ -33,7 +25,10 @@ export interface Brinde {
   descricao: string;
   /** null no Personalizável: o valor sai do orçamento. */
   custoUnitario: number | null;
-  variacoes: Variacao[];
+  /** Saldo físico, reserva e mínimo de estoque do brinde. Só no brinde de estoque; no Personalizável ficam 0 e são ignorados. */
+  saldo: number;
+  reserva: number;
+  minimo: number;
   /** Só no Personalizável. */
   prazoExtraDiasUteis?: number;
   opcoesPersonalizacao?: OpcaoPersonalizacao[];
@@ -54,7 +49,6 @@ export interface Evento {
 
 export interface LinhaPedido {
   brindeId: string;
-  variacaoId: string;
   qtd: number;
   tipo: TipoBrinde;
   /** Gravado na criação. null no Personalizável. */
@@ -97,7 +91,6 @@ export type TipoMovimentacao = "saldo_inicial" | "entrada" | "saida" | "ajuste";
 export interface Movimentacao {
   id: string;
   brindeId: string;
-  variacaoId: string;
   tipo: TipoMovimentacao;
   /** Positivo em saldo_inicial, entrada e saida (a saída subtrai); com sinal no ajuste. */
   qtd: number;
@@ -128,9 +121,11 @@ export interface DadosPedido {
   dataDesejada?: string;
 }
 
+/** Dados do cadastro de brinde: saldo e reserva nunca vêm do formulário; `saldoInicial` só vale na criação. */
+export type DadosBrinde = Omit<Brinde, "saldo" | "reserva"> & { saldoInicial?: number };
+
 export interface LinhaEntrada {
   brindeId: string;
-  variacaoId: string;
   qtd: number;
   personalizacao?: { texto?: string; arte?: string };
 }

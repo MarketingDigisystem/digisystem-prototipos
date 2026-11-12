@@ -19,7 +19,7 @@ import {
   unidadesDoPedido,
   valorDoPedido,
   valorEmEstoque,
-  variacaoDeGasto,
+  mudancaDeGasto,
 } from "../../regras";
 import { href } from "../../rota";
 import { useLoja } from "../../store";
@@ -139,14 +139,14 @@ export function Metricas() {
   const [area, setArea] = useState<string | undefined>(undefined);
 
   const m = useMemo(() => metricasDoPeriodo(dados, mes), [dados, mes]);
-  const v = variacaoDeGasto(m);
+  const v = mudancaDeGasto(m);
   const pedidos = useMemo(() => pedidosEncerradosDoPeriodo(dados, mes, area), [dados, mes, area]);
   const abaixo = useMemo(() => alertasMinimo(dados), [dados]);
   const zerados = useMemo(() => esgotados(dados), [dados]);
   const top = useMemo(() => popularidade(dados).slice(0, 5), [dados]);
   const maiorPop = Math.max(1, ...top.map((t) => t.unidades));
   const ativos = dados.brindes.filter((b) => b.ativo);
-  const variacoesAtivas = ativos.reduce((s, b) => s + b.variacoes.length, 0);
+  const emEstoqueAtivos = ativos.filter((b) => b.tipo === "estoque").length;
   const anteriorFechado = m.mesAnterior in dados.gastoFechado;
 
   const trocarMes = (novo: string) => {
@@ -323,7 +323,7 @@ export function Metricas() {
           ) : (
             <ul className="mt-3 grid gap-2">
               {zerados.map((a) => (
-                <li key={`z-${a.brindeId}/${a.variacaoId}`} className="flex flex-wrap items-center gap-2 text-sm">
+                <li key={`z-${a.brindeId}`} className="flex flex-wrap items-center gap-2 text-sm">
                   <span className="inline-flex h-6 items-center rounded-full bg-destructive px-2.5 font-display text-xs font-bold text-destructive-foreground">
                     Esgotado
                   </span>
@@ -331,7 +331,7 @@ export function Metricas() {
                 </li>
               ))}
               {abaixo.map((a) => (
-                <li key={`a-${a.brindeId}/${a.variacaoId}`} className="flex flex-wrap items-center gap-2 text-sm">
+                <li key={`a-${a.brindeId}`} className="flex flex-wrap items-center gap-2 text-sm">
                   <span className="inline-flex h-6 items-center gap-1 rounded-full bg-warning-soft px-2.5 font-display text-xs font-bold text-foreground ring-1 ring-warning">
                     <AlertTriangle className="size-3" aria-hidden />
                     Abaixo do mínimo
@@ -360,8 +360,8 @@ export function Metricas() {
               <dd className="font-display text-xl font-bold tabular-nums text-navy">{ativos.length}</dd>
             </div>
             <div>
-              <dt className="text-xs font-semibold text-muted-foreground">Variações</dt>
-              <dd className="font-display text-xl font-bold tabular-nums text-navy">{variacoesAtivas}</dd>
+              <dt className="text-xs font-semibold text-muted-foreground">Brindes em estoque</dt>
+              <dd className="font-display text-xl font-bold tabular-nums text-navy">{emEstoqueAtivos}</dd>
             </div>
           </dl>
         </section>

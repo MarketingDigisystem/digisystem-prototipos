@@ -8,8 +8,9 @@
 
 import { useState } from "react";
 import { CheckCircle2 } from "lucide-react";
-import { brl } from "../../formato";
-import { formatarDdMm, hojeDe, prazoExtraDasLinhas, validarDataDesejada } from "../../regras";
+import { PrecoBrinde } from "../../PrecoBrinde";
+import { TotalPedido } from "../../TotalPedido";
+import { formatarDdMm, hojeDe, precoDaLinhaDoCarrinho, prazoExtraDasLinhas, totalDoCarrinho, validarDataDesejada } from "../../regras";
 import { href } from "../../rota";
 import { useLoja } from "../../store";
 import type { Pedido } from "../../tipos";
@@ -74,14 +75,7 @@ export function Revisao() {
   const prazoExtra = prazoExtraDasLinhas(loja.dados.brindes, loja.carrinho);
   const validade = validarDataDesejada(data || undefined, prazoExtra, hoje);
 
-  let total = 0;
-  let aAvaliar = 0;
-  for (const l of loja.carrinho) {
-    const b = loja.brinde(l.brindeId);
-    if (!b) continue;
-    if (b.tipo === "estoque") total += Math.round((b.custoUnitario ?? 0) * l.qtd * 100) / 100;
-    else aAvaliar += 1;
-  }
+  const { total, aAvaliar } = totalDoCarrinho(loja.dados.brindes, loja.carrinho);
 
   const enviar = () => {
     if (!finalidade.trim()) {
@@ -117,8 +111,7 @@ export function Revisao() {
           <ul className="space-y-2">
             {loja.carrinho.map((l, idx) => {
               const b = loja.brinde(l.brindeId);
-              const v = b?.variacoes.find((x) => x.id === l.variacaoId);
-              if (!b || !v) return null;
+              if (!b) return null;
               const extra = [l.personalizacao?.texto, l.personalizacao?.arte ? `Arte: ${l.personalizacao.arte}` : ""].filter(Boolean).join(" · ");
               return (
                 <li key={l.chave} style={estiloEntrada(idx)} className="le-entra flex items-center gap-3 rounded-2xl border bg-card p-3 shadow-card">
@@ -128,24 +121,16 @@ export function Revisao() {
                   <div className="min-w-0 flex-1">
                     <p title={b.nome} className="line-clamp-2 break-words font-display text-base font-bold leading-snug text-navy">{b.nome}</p>
                     <p className="text-xs text-muted-foreground">
-                      {v.rotulo} · {l.qtd} {l.qtd === 1 ? "unidade" : "unidades"}
+                      {l.qtd} {l.qtd === 1 ? "unidade" : "unidades"}
                     </p>
                     {extra && <p className="line-clamp-2 text-xs text-foreground/80">{extra}</p>}
                   </div>
-                  <p className="shrink-0 text-right text-sm font-semibold text-foreground">
-                    {b.tipo === "estoque" ? brl((b.custoUnitario ?? 0) * l.qtd) : "A avaliar"}
-                  </p>
+                  <PrecoBrinde modo="linha" linha={precoDaLinhaDoCarrinho(b, l.qtd)} className="max-w-[11rem] shrink-0 text-right" />
                 </li>
               );
             })}
           </ul>
-          <div className="flex items-baseline justify-between gap-3 rounded-2xl bg-secondary px-4 py-3">
-            <span className="font-display text-sm font-bold text-navy">Total dos brindes de estoque</span>
-            <span className="font-display text-lg font-bold text-navy tabular-nums">{brl(total)}</span>
-          </div>
-          <p className="min-h-5 text-xs font-semibold text-foreground/80">
-            {aAvaliar > 0 ? `${aAvaliar} ${aAvaliar === 1 ? "item" : "itens"} a avaliar: valor avaliado conforme a quantidade.` : ""}
-          </p>
+          <TotalPedido total={total} aAvaliar={aAvaliar} className="rounded-2xl bg-secondary px-4 py-3" />
         </div>
 
         <form

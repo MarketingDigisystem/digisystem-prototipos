@@ -3,20 +3,19 @@
 // Fonte da verdade = Lovable. Regenerar (não remendar) se o real mudar.
 // Decisão de design correspondente: .agents/tasks/loja-equilibrio/ (relatorio.md) e .kiro/specs/loja-equilibrio-digiplace/design.md (Req. 4.4, 4.5, 5.4).
 //
-// Estoque da gestão: KPIs, uma linha por variação (saldo, reserva, disponível, mínimo, alerta) e diálogo de entrada/ajuste.
+// Estoque da gestão: KPIs, uma linha por brinde (saldo, reserva, disponível, mínimo, alerta) e diálogo de entrada/ajuste.
 // A gestão PODE ver saldo, reserva e mínimo (o diretor não). Entrada e ajuste abrem num diálogo fixo, sem mover a tabela.
 
 import { useMemo, useState } from "react";
 import { alertasMinimo, disponivel, esgotados, valorEmEstoque } from "../../regras";
 import { SAIDA_DIALOGO_MS, estiloEntrada } from "../../movimento";
 import { useLoja } from "../../store";
-import type { Brinde, Variacao } from "../../tipos";
+import type { Brinde } from "../../tipos";
 import { useSaidaAnimada } from "../../ui";
 import { BTN_PRIMARIO, BTN_SECUNDARIO, CAMPO, Campo, Dialogo, ErroInline, PILL, PILL_ATIVO, PILL_INATIVO, brl } from "./comum";
 
 interface Alvo {
   b: Brinde;
-  v: Variacao;
   modo: "entrada" | "ajuste";
 }
 
@@ -48,8 +47,8 @@ function DialogoMovimento({ alvo, onFechar: aoFechar }: { alvo: Alvo | null; onF
     }
     const r =
       modo === "entrada"
-        ? loja.registrarEntrada(alvo.b.id, alvo.v.id, n, nota)
-        : loja.registrarAjuste(alvo.b.id, alvo.v.id, n, nota);
+        ? loja.registrarEntrada(alvo.b.id, n, nota)
+        : loja.registrarAjuste(alvo.b.id, n, nota);
     if (r.ok) onFechar();
     else setErro(r.motivo);
   };
@@ -58,7 +57,7 @@ function DialogoMovimento({ alvo, onFechar: aoFechar }: { alvo: Alvo | null; onF
     <Dialogo
       aberto
       saindo={saindo}
-      titulo={`${alvo.b.nome} · ${alvo.v.rotulo}`}
+      titulo={alvo.b.nome}
       onFechar={onFechar}
       rodape={
         <div>
@@ -75,7 +74,7 @@ function DialogoMovimento({ alvo, onFechar: aoFechar }: { alvo: Alvo | null; onF
       }
     >
       <p className="mb-3 text-sm text-muted-foreground">
-        Saldo {alvo.v.saldo} · reservado {alvo.v.reserva} · disponível {disponivel(alvo.v)}
+        Saldo {alvo.b.saldo} · reservado {alvo.b.reserva} · disponível {disponivel(alvo.b)}
       </p>
       <div role="group" aria-label="Tipo de movimento" className="mb-3 flex gap-1">
         {(["entrada", "ajuste"] as const).map((m) => (
@@ -122,14 +121,13 @@ export function Estoque() {
     () =>
       dados.brindes
         .filter((b) => b.tipo === "estoque")
-        .flatMap((b) => b.variacoes.map((v) => ({ b, v })))
-        .sort((x, y) => x.b.nome.localeCompare(y.b.nome, "pt-BR") || x.v.rotulo.localeCompare(y.v.rotulo, "pt-BR")),
+        .sort((x, y) => x.nome.localeCompare(y.nome, "pt-BR")),
     [dados.brindes],
   );
-  const abaixo = useMemo(() => new Set(alertasMinimo(dados).map((a) => `${a.brindeId}/${a.variacaoId}`)), [dados]);
-  const zerados = useMemo(() => new Set(esgotados(dados).map((a) => `${a.brindeId}/${a.variacaoId}`)), [dados]);
+  const abaixo = useMemo(() => new Set(alertasMinimo(dados).map((a) => a.brindeId)), [dados]);
+  const zerados = useMemo(() => new Set(esgotados(dados).map((a) => a.brindeId)), [dados]);
   const ativos = dados.brindes.filter((b) => b.ativo);
-  const variacoesAtivas = dados.brindes.filter((b) => b.ativo && b.tipo === "estoque").reduce((s, b) => s + b.variacoes.length, 0);
+  const emEstoqueAtivos = dados.brindes.filter((b) => b.ativo && b.tipo === "estoque").length;
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6" aria-labelledby="est-titulo">
@@ -139,7 +137,7 @@ export function Estoque() {
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
         <Kpi rotulo="Brindes ativos" valor={String(ativos.length)} />
-        <Kpi rotulo="Variações em estoque" valor={String(variacoesAtivas)} />
+        <Kpi rotulo="Brindes em estoque" valor={String(emEstoqueAtivos)} />
         <Kpi rotulo="Abaixo do mínimo" valor={String(abaixo.size)} destaque={abaixo.size > 0 ? "alerta" : undefined} />
         <Kpi rotulo="Esgotados" valor={String(zerados.size)} destaque={zerados.size > 0 ? "esgotado" : undefined} />
         <div className="col-span-2 md:col-span-1">
@@ -152,7 +150,7 @@ export function Estoque() {
           className="hidden items-center gap-3 border-b bg-secondary/60 px-4 py-2 text-xs font-semibold text-muted-foreground lg:grid lg:grid-cols-[minmax(0,2fr)_repeat(4,72px)_130px_190px]"
           aria-hidden
         >
-          <span>Brinde · variação</span>
+          <span>Brinde</span>
           <span className="text-right">Saldo</span>
           <span className="text-right">Reserva</span>
           <span className="text-right">Disponível</span>
@@ -161,28 +159,25 @@ export function Estoque() {
           <span className="text-right">Movimentar</span>
         </div>
         <ul>
-          {linhas.map(({ b, v }, i) => {
-            const k = `${b.id}/${v.id}`;
-            const esgotado = zerados.has(k);
-            const baixo = abaixo.has(k);
+          {linhas.map((b, i) => {
+            const esgotado = zerados.has(b.id);
+            const baixo = abaixo.has(b.id);
             return (
               <li
-                key={k}
+                key={b.id}
                 style={estiloEntrada(i)}
                 className="le-entra grid grid-cols-4 items-center gap-x-3 gap-y-2 border-b px-4 py-3 last:border-b-0 lg:grid-cols-[minmax(0,2fr)_repeat(4,72px)_130px_190px]"
               >
                 <div className="col-span-4 min-w-0 lg:col-span-1">
-                  <p className="truncate font-display text-base font-bold text-navy">
-                    {b.nome} <span className="font-normal text-foreground/80">· {v.rotulo}</span>
-                  </p>
+                  <p className="truncate font-display text-base font-bold text-navy">{b.nome}</p>
                   {!b.ativo && <p className="text-xs text-muted-foreground">Brinde desativado</p>}
                 </div>
                 {(
                   [
-                    ["Saldo", v.saldo],
-                    ["Reserva", v.reserva],
-                    ["Disponível", disponivel(v)],
-                    ["Mínimo", v.minimo],
+                    ["Saldo", b.saldo],
+                    ["Reserva", b.reserva],
+                    ["Disponível", disponivel(b)],
+                    ["Mínimo", b.minimo],
                   ] as const
                 ).map(([rot, n]) => (
                   <p key={rot} className="text-right text-sm tabular-nums lg:text-right">
@@ -204,10 +199,10 @@ export function Estoque() {
                   )}
                 </p>
                 <div className="col-span-4 flex gap-2 lg:col-span-1 lg:justify-end">
-                  <button type="button" onClick={() => setAlvo({ b, v, modo: "entrada" })} className={`${BTN_SECUNDARIO} flex-1 lg:flex-none`}>
+                  <button type="button" onClick={() => setAlvo({ b, modo: "entrada" })} className={`${BTN_SECUNDARIO} flex-1 lg:flex-none`}>
                     Entrada
                   </button>
-                  <button type="button" onClick={() => setAlvo({ b, v, modo: "ajuste" })} className={`${BTN_SECUNDARIO} flex-1 lg:flex-none`}>
+                  <button type="button" onClick={() => setAlvo({ b, modo: "ajuste" })} className={`${BTN_SECUNDARIO} flex-1 lg:flex-none`}>
                     Ajuste
                   </button>
                 </div>
@@ -219,7 +214,7 @@ export function Estoque() {
       <p className="mt-3 text-xs text-muted-foreground">Brindes personalizáveis não têm saldo próprio: o valor sai do orçamento de cada pedido.</p>
 
       {/* key: cada abertura começa com os campos limpos e o tipo escolhido na linha. */}
-      <DialogoMovimento key={alvo ? `${alvo.b.id}/${alvo.v.id}/${alvo.modo}` : "fechado"} alvo={alvo} onFechar={() => setAlvo(null)} />
+      <DialogoMovimento key={alvo ? `${alvo.b.id}/${alvo.modo}` : "fechado"} alvo={alvo} onFechar={() => setAlvo(null)} />
     </section>
   );
 }

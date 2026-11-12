@@ -218,9 +218,9 @@ export function ParDeslizante<T extends string | number | boolean>({
   );
 }
 
-/** Selo informativo. "Últimas unidades" usa laranja com texto escuro; "Novidade" usa fundo opaco com anel de apoio. */
+/** Selo informativo. "Últimas unidades" usa laranja com texto escuro; "Novidade" usa navy cheio com texto branco (Req. 12.12). */
 export function Selo({ tipo }: { tipo: "novidade" | "ultimas" }) {
-  const estilo = tipo === "novidade" ? "bg-card text-navy ring-1 ring-sky" : "bg-accent text-[color:var(--on-accent)]";
+  const estilo = tipo === "novidade" ? "bg-navy text-white" : "bg-accent text-[color:var(--on-accent)]";
   return (
     <span className={`inline-flex h-6 items-center rounded-full px-2.5 font-display text-xs font-bold ${estilo}`}>
       {tipo === "novidade" ? "Novidade" : "Últimas unidades"}

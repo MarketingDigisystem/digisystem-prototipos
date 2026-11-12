@@ -23,7 +23,7 @@ import {
   salvarBrinde as rSalvarBrinde,
   validarLinha,
 } from "./regras";
-import type { Brinde, DadosPedido, Estado, EstadoPedido, Pedido, Pessoa, Variacao } from "./tipos";
+import type { Brinde, DadosBrinde, DadosPedido, Estado, EstadoPedido, Pedido, Pessoa } from "./tipos";
 
 export type Visao = "diretor" | "gestao";
 
@@ -32,9 +32,13 @@ export type Resultado<T = void> = { ok: true; dado: T } | { ok: false; motivo: s
 export interface LinhaCarrinho {
   chave: string;
   brindeId: string;
-  variacaoId: string;
   qtd: number;
   personalizacao?: { texto?: string; arte?: string };
+}
+
+/** Chave de fusão do Carrinho: o mesmo brinde com a mesma personalização soma em uma linha. */
+export function chaveDeFusao(brindeId: string, personalizacao?: LinhaCarrinho["personalizacao"]): string {
+  return brindeId + JSON.stringify(personalizacao ?? null);
 }
 
 export const PESSOA_DIRETOR_PADRAO = "d1"; // Marina Costa
@@ -90,7 +94,7 @@ function lerCarrinho(): LinhaCarrinho[] {
         typeof l.chave === "string" &&
         Number.isInteger(l.qtd) &&
         l.qtd >= 1 &&
-        ESTADO_INICIAL.brindes.some((b) => b.id === l.brindeId && b.variacoes.some((v) => v.id === l.variacaoId)),
+        ESTADO_INICIAL.brindes.some((b) => b.id === l.brindeId),
     );
   } catch {
     return [];
@@ -122,8 +126,8 @@ export interface Loja {
   carrinho: LinhaCarrinho[];
   carrinhoAberto: boolean;
   abrirCarrinho: (aberto: boolean) => void;
-  /** Valida a linha (ativo, variação, disponível, inteiro a partir de 1) somando o que já está no carrinho. */
-  adicionar: (brindeId: string, variacaoId: string, qtd: number, personalizacao?: LinhaCarrinho["personalizacao"]) => Resultado;
+  /** Valida a linha (ativo, disponível, inteiro a partir de 1) somando o que já está no carrinho. */
+  adicionar: (brindeId: string, qtd: number, personalizacao?: LinhaCarrinho["personalizacao"]) => Resultado;
   definirQuantidade: (chave: string, qtd: number) => Resultado;
   remover: (chave: string) => void;
   limparCarrinho: () => void;
@@ -134,13 +138,13 @@ export interface Loja {
   informarOrcamento: (pedidoId: string, indiceLinha: number, valorUnitario: number) => Resultado;
   aceitarOrcamento: (pedidoId: string, indiceLinha: number) => Resultado;
   ajustarQuantidadeLinha: (pedidoId: string, indiceLinha: number, novaQtd: number, nota: string) => Resultado;
-  registrarEntrada: (brindeId: string, variacaoId: string, qtd: number, nota?: string) => Resultado;
-  registrarAjuste: (brindeId: string, variacaoId: string, delta: number, nota: string) => Resultado;
+  registrarEntrada: (brindeId: string, qtd: number, nota?: string) => Resultado;
+  registrarAjuste: (brindeId: string, delta: number, nota: string) => Resultado;
   criarSugestao: (nome: string, descricao: string) => Resultado;
   analisarSugestao: (id: string) => Resultado;
   decidirSugestao: (id: string, alvo: "aprovada" | "recusada", motivo?: string) => Resultado;
   /** Cadastro (gestão): cria ou edita um brinde; liga/desliga na vitrine. */
-  salvarBrinde: (brinde: Brinde) => Resultado;
+  salvarBrinde: (brinde: DadosBrinde) => Resultado;
   alternarAtivo: (id: string) => Resultado;
 
   /** Atalhos de leitura. */
@@ -198,11 +202,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loja = useMemo<Loja>(() => {
-    const achar = (e: Estado, brindeId: string, variacaoId: string): { b: Brinde; v: Variacao } | undefined => {
-      const b = e.brindes.find((x) => x.id === brindeId);
-      const v = b?.variacoes.find((x) => x.id === variacaoId);
-      return b && v ? { b, v } : undefined;
-    };
+    const achar = (e: Estado, brindeId: string): Brinde | undefined => e.brindes.find((x) => x.id === brindeId);
 
     const gravarCarrinho = (carrinho: LinhaCarrinho[]) => {
       ref.current = { ...ref.current, carrinho };
@@ -221,24 +221,24 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       carrinhoAberto: s.carrinhoAberto,
       abrirCarrinho: (aberto) => dispatch({ tipo: "abrirCarrinho", aberto }),
 
-      adicionar: (brindeId, variacaoId, qtd, personalizacao) => {
+      adicionar: (brindeId, qtd, personalizacao) => {
         const atual = ref.current;
-        const alvo = achar(atual.dados, brindeId, variacaoId);
+        const alvo = achar(atual.dados, brindeId);
         if (!alvo) return { ok: false, motivo: "Brinde não encontrado." };
-        // Linhas iguais (mesma variação, sem personalização) somam; as demais entram como linha nova.
-        const igual = atual.carrinho.find(
-          (l) => l.brindeId === brindeId && l.variacaoId === variacaoId && !personalizacao && !l.personalizacao,
-        );
+        // Mesma chave de fusão (brinde + personalização) soma em uma linha; as demais entram como linha nova.
+        const chaveNova = chaveDeFusao(brindeId, personalizacao);
+        const igual = atual.carrinho.find((l) => chaveDeFusao(l.brindeId, l.personalizacao) === chaveNova);
         const total = qtd + (igual?.qtd ?? 0);
-        const jaDaVariacao = atual.carrinho
-          .filter((l) => l.brindeId === brindeId && l.variacaoId === variacaoId && l !== igual)
+        // Brinde de estoque: o limite vale para a soma de todas as linhas do brinde.
+        const outras = atual.carrinho
+          .filter((l) => l.brindeId === brindeId && l !== igual)
           .reduce((n, l) => n + l.qtd, 0);
-        const r = validarLinha(alvo.b, alvo.v, alvo.b.tipo === "estoque" ? total + jaDaVariacao : total);
+        const r = validarLinha(alvo, alvo.tipo === "estoque" ? total + outras : total);
         if (!r.ok) return { ok: false, motivo: r.erros.join(" ") };
         gravarCarrinho(
           igual
             ? atual.carrinho.map((l) => (l === igual ? { ...l, qtd: total } : l))
-            : [...atual.carrinho, { chave: novaChave(), brindeId, variacaoId, qtd, personalizacao }],
+            : [...atual.carrinho, { chave: novaChave(), brindeId, qtd, personalizacao }],
         );
         return { ok: true, dado: undefined };
       },
@@ -246,9 +246,9 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         const atual = ref.current;
         const linha = atual.carrinho.find((l) => l.chave === chave);
         if (!linha) return { ok: false, motivo: "Item não encontrado no carrinho." };
-        const alvo = achar(atual.dados, linha.brindeId, linha.variacaoId);
+        const alvo = achar(atual.dados, linha.brindeId);
         if (!alvo) return { ok: false, motivo: "Brinde não encontrado." };
-        const r = validarLinha(alvo.b, alvo.v, qtd);
+        const r = validarLinha(alvo, qtd);
         if (!r.ok) return { ok: false, motivo: r.erros.join(" ") };
         gravarCarrinho(atual.carrinho.map((l) => (l.chave === chave ? { ...l, qtd } : l)));
         return { ok: true, dado: undefined };
@@ -263,7 +263,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
           const dados = rCriarPedido(
             atual.dados,
             { ...d, solicitanteId: atual.diretorId },
-            atual.carrinho.map((l) => ({ brindeId: l.brindeId, variacaoId: l.variacaoId, qtd: l.qtd, personalizacao: l.personalizacao })),
+            atual.carrinho.map((l) => ({ brindeId: l.brindeId, qtd: l.qtd, personalizacao: l.personalizacao })),
           );
           const pedido = dados.pedidos[antes];
           ref.current = { ...atual, dados, carrinho: [] };
@@ -278,14 +278,12 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       aceitarOrcamento: (pedidoId, i) => aplicar((e, quem) => rAceitarOrcamento(e, pedidoId, i, quem)),
       ajustarQuantidadeLinha: (pedidoId, i, qtd, nota) =>
         aplicar((e, quem) => rAjustarQuantidadeLinha(e, pedidoId, i, qtd, quem, nota)),
-      registrarEntrada: (brindeId, variacaoId, qtd, nota) =>
-        aplicar((e, quem) => rRegistrarEntrada(e, brindeId, variacaoId, qtd, quem, nota)),
-      registrarAjuste: (brindeId, variacaoId, delta, nota) =>
-        aplicar((e, quem) => rRegistrarAjuste(e, brindeId, variacaoId, delta, quem, nota)),
+      registrarEntrada: (brindeId, qtd, nota) => aplicar((e, quem) => rRegistrarEntrada(e, brindeId, qtd, quem, nota)),
+      registrarAjuste: (brindeId, delta, nota) => aplicar((e, quem) => rRegistrarAjuste(e, brindeId, delta, quem, nota)),
       criarSugestao: (nome, descricao) => aplicar((e, quem) => rCriarSugestao(e, quem, nome, descricao)),
       analisarSugestao: (id) => aplicar((e) => rAnalisarSugestao(e, id)),
       decidirSugestao: (id, alvo, motivo) => aplicar((e) => rDecidirSugestao(e, id, alvo, motivo)),
-      salvarBrinde: (brinde) => aplicar((e) => rSalvarBrinde(e, brinde)),
+      salvarBrinde: (brinde) => aplicar((e, quem) => rSalvarBrinde(e, brinde, quem)),
       alternarAtivo: (id) => aplicar((e) => rAlternarAtivo(e, id)),
 
       brinde: (idOuSlug) => s.dados.brindes.find((b) => b.id === idOuSlug || b.slug === idOuSlug),
