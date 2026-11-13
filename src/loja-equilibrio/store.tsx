@@ -24,7 +24,8 @@ import {
   salvarBrinde as rSalvarBrinde,
   validarLinha,
 } from "./regras";
-import type { Brinde, DadosBrinde, DadosPedido, Estado, EstadoPedido, Pedido, Pessoa } from "./tipos";
+import type { RascunhoBrinde } from "./sugestaoOpcoes";
+import type { Brinde, DadosBrinde, DadosPedido, DadosSugestao, Estado, EstadoPedido, Pedido, Pessoa } from "./tipos";
 
 export type Visao = "diretor" | "gestao";
 
@@ -52,6 +53,8 @@ interface Interno {
   visao: Visao;
   diretorId: string;
   gestaoId: string;
+  /** Rascunho do Novo brinde vindo de uma sugestão aprovada; o Cadastro o consome uma única vez. */
+  rascunho: RascunhoBrinde | null;
 }
 
 type Acao =
@@ -60,7 +63,8 @@ type Acao =
   | { tipo: "carrinho"; carrinho: LinhaCarrinho[] }
   | { tipo: "abrirCarrinho"; aberto: boolean }
   | { tipo: "visao"; visao: Visao }
-  | { tipo: "pessoa"; visao: Visao; id: string };
+  | { tipo: "pessoa"; visao: Visao; id: string }
+  | { tipo: "rascunho"; rascunho: RascunhoBrinde | null };
 
 function reducer(s: Interno, a: Acao): Interno {
   switch (a.tipo) {
@@ -75,6 +79,8 @@ function reducer(s: Interno, a: Acao): Interno {
     case "visao":
       // Trocar de visão fecha o carrinho (ele só existe para o diretor) e nada mais se move.
       return { ...s, visao: a.visao, carrinhoAberto: false };
+    case "rascunho":
+      return { ...s, rascunho: a.rascunho };
     case "pessoa":
       return a.visao === "diretor" ? { ...s, diretorId: a.id } : { ...s, gestaoId: a.id };
   }
@@ -110,6 +116,7 @@ function inicial(): Interno {
     visao: "diretor",
     diretorId: PESSOA_DIRETOR_PADRAO,
     gestaoId: PESSOA_GESTAO_PADRAO,
+    rascunho: null,
   };
 }
 
@@ -145,12 +152,16 @@ export interface Loja {
   ajustarQuantidadeLinha: (pedidoId: string, indiceLinha: number, novaQtd: number, nota: string) => Resultado;
   registrarEntrada: (brindeId: string, qtd: number, nota?: string) => Resultado;
   registrarAjuste: (brindeId: string, delta: number, nota: string) => Resultado;
-  criarSugestao: (nome: string, descricao: string) => Resultado;
+  criarSugestao: (dados: DadosSugestao) => Resultado;
   analisarSugestao: (id: string) => Resultado;
   decidirSugestao: (id: string, alvo: "aprovada" | "recusada", motivo?: string) => Resultado;
   /** Cadastro (gestão): cria ou edita um brinde; liga/desliga na vitrine. */
   salvarBrinde: (brinde: DadosBrinde) => Resultado;
   alternarAtivo: (id: string) => Resultado;
+  /** Guarda o rascunho do Novo brinde (não salva brinde nenhum). */
+  definirRascunhoCadastro: (r: RascunhoBrinde) => void;
+  /** Devolve o rascunho guardado e o apaga: a segunda chamada devolve null. */
+  consumirRascunhoCadastro: () => RascunhoBrinde | null;
 
   /** Atalhos de leitura. */
   brinde: (idOuSlug: string) => Brinde | undefined;
@@ -305,11 +316,22 @@ export function LojaProvider({ children }: { children: ReactNode }) {
         aplicar((e, quem) => rAjustarQuantidadeLinha(e, pedidoId, i, qtd, quem, nota)),
       registrarEntrada: (brindeId, qtd, nota) => aplicar((e, quem) => rRegistrarEntrada(e, brindeId, qtd, quem, nota)),
       registrarAjuste: (brindeId, delta, nota) => aplicar((e, quem) => rRegistrarAjuste(e, brindeId, delta, quem, nota)),
-      criarSugestao: (nome, descricao) => aplicar((e, quem) => rCriarSugestao(e, quem, nome, descricao)),
+      criarSugestao: (dados) => aplicar((e, quem) => rCriarSugestao(e, quem, dados)),
       analisarSugestao: (id) => aplicar((e) => rAnalisarSugestao(e, id)),
       decidirSugestao: (id, alvo, motivo) => aplicar((e) => rDecidirSugestao(e, id, alvo, motivo)),
       salvarBrinde: (brinde) => aplicar((e, quem) => rSalvarBrinde(e, brinde, quem)),
       alternarAtivo: (id) => aplicar((e) => rAlternarAtivo(e, id)),
+      definirRascunhoCadastro: (r) => {
+        ref.current = { ...ref.current, rascunho: r };
+        dispatch({ tipo: "rascunho", rascunho: r });
+      },
+      consumirRascunhoCadastro: () => {
+        const r = ref.current.rascunho;
+        if (!r) return null;
+        ref.current = { ...ref.current, rascunho: null };
+        dispatch({ tipo: "rascunho", rascunho: null });
+        return r;
+      },
 
       brinde: (idOuSlug) => s.dados.brindes.find((b) => b.id === idOuSlug || b.slug === idOuSlug),
       nomeDaPessoa: (id) => s.dados.pessoas.find((p) => p.id === id)?.nome ?? id,

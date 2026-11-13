@@ -90,6 +90,10 @@ export interface Pedido {
 
 export type EstadoSugestao = "sugerida" | "em_analise" | "aprovada" | "recusada";
 
+export type Frequencia = "uma_vez" | "todo_mes" | "trimestral" | "anual";
+export type FaixaCusto = "ate_10" | "10_30" | "30_60" | "60_120" | "acima_120" | "nao_sei";
+export type ComLogo = "com_logo" | "sem_logo" | "nao_sei";
+
 export interface Sugestao {
   id: string;
   autorId: string;
@@ -98,7 +102,27 @@ export interface Sugestao {
   estado: EstadoSugestao;
   motivo?: string;
   em: string;
+  /** Categoria do catálogo ou "Outra". */
+  categoria?: string;
+  /** Até 280 caracteres. */
+  porQueCombina?: string;
+  /** URL http ou https. */
+  link?: string;
+  /** Só o nome do arquivo no protótipo. */
+  fotoReferencia?: string;
+  ocasioes?: string[];
+  publicos?: string[];
+  /** AAAA-MM-DD, não anterior a hoje no envio. */
+  dataNecessaria?: string;
+  frequencia?: Frequencia;
+  /** Inteiro maior ou igual a 1. */
+  quantidadeEstimada?: number;
+  faixaCusto?: FaixaCusto;
+  comLogo?: ComLogo;
 }
+
+/** Dados do formulário de sugestão: só o nome é obrigatório. */
+export type DadosSugestao = Omit<Sugestao, "id" | "autorId" | "estado" | "motivo" | "em" | "descricao"> & { descricao?: string };
 
 export type TipoMovimentacao = "saldo_inicial" | "entrada" | "saida" | "ajuste";
 

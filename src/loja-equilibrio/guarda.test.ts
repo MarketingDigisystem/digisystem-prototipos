@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 import { ROTULO_ESTADO } from "./formato";
-import { TRANSICOES } from "./regras";
+import { TRANSICOES, brindesParecidos } from "./regras";
 
 const fontesBrutas = import.meta.glob<string>("./**/*.{ts,tsx}", { query: "?raw", import: "default", eager: true });
 const fontesAuth = import.meta.glob<string>("../auth-proto/**/*.{ts,tsx}", { query: "?raw", import: "default", eager: true });
@@ -541,5 +541,121 @@ describe("guarda 19: catálogo oficial", () => {
     expect(ESTADO_INICIAL.brindes.filter((b) => b.tipo === "personalizavel")).toHaveLength(1);
     expect(ESTADO_INICIAL.brindes.filter((b) => b.tipo === "estoque")).toHaveLength(6);
     expect(ESTADO_INICIAL.brindes.every((b) => b.foto.startsWith("/brindes/"))).toBe(true);
+  });
+});
+
+/* ---- 20 a 22. Formulário de sugestão (Req. 16) ---- */
+
+/** Arquivos do formulário de sugestão do diretor: a tela, a pasta de componentes e as opções. */
+const arquivosDeSugestao = arquivos.filter((a) => a === "telas/solicitante/Sugerir.tsx" || a.startsWith("telas/solicitante/sugestao/") || a === "sugestaoOpcoes.ts");
+
+describe("guarda 20: o nome é o único campo com aria-required no formulário de sugestão", () => {
+  // **Validates: Requirements 16.1**
+  it("o conjunto verificado inclui a tela, os componentes e as opções", () => {
+    expect(arquivosDeSugestao).toEqual(
+      expect.arrayContaining(["telas/solicitante/Sugerir.tsx", "telas/solicitante/sugestao/Parecidos.tsx", "telas/solicitante/sugestao/ResumoSugestao.tsx", "sugestaoOpcoes.ts"]),
+    );
+  });
+
+  it("Sugerir.tsx usa aria-required uma única vez, no campo do nome, e os componentes de sugestão nunca", () => {
+    const { exibivel } = varrer(fontes["telas/solicitante/Sugerir.tsx"]);
+    expect(exibivel.match(/aria-required/g) ?? []).toHaveLength(1);
+    expect(exibivel).toMatch(/placeholder="Ex\.: Mouse pad ergonômico"\s+aria-required/);
+    for (const a of arquivosDeSugestao.filter((x) => x !== "telas/solicitante/Sugerir.tsx")) {
+      expect({ a, usa: /aria-required/.test(varrer(fontes[a]).exibivel) }).toEqual({ a, usa: false });
+    }
+  });
+
+  it("a tela tem os três fieldset com legend", () => {
+    const { exibivel } = varrer(fontes["telas/solicitante/Sugerir.tsx"]);
+    expect(exibivel.match(/<fieldset\b/g) ?? []).toHaveLength(3);
+    for (const t of ["Sobre o brinde", "Para que serve", "Quanto custa e quanto precisa"]) expect(exibivel).toContain(`>${t}</legend>`);
+  });
+});
+
+describe("guarda 21: o formulário de sugestão e os parecidos não exibem termos de estoque", () => {
+  // **Validates: Requirements 16.16, 16.34**
+  it.each(arquivosDeSugestao)("%s não contém disponíve, saldo, reserva nem mínimo (nem em comentário)", (arquivo) => {
+    const texto = semAcento(fontes[arquivo]);
+    expect(texto).not.toContain("disponive");
+    expect(texto).not.toMatch(/\bsaldo/);
+    expect(texto).not.toContain("reserva");
+    expect(texto).not.toContain("minimo");
+    expect(texto).not.toMatch(/\.(?:saldo|reserva|minimo)\b/);
+    expect(texto).not.toMatch(/selosdeestoque/);
+  });
+});
+
+describe("guarda 22: brindesParecidos devolve só id, slug, nome e categoria", () => {
+  // **Validates: Requirements 16.16**
+  it("o resultado real só tem as quatro chaves públicas", () => {
+    const achados = brindesParecidos(ESTADO_INICIAL.brindes, "caneca", "Escritório");
+    expect(achados.length).toBeGreaterThan(0);
+    for (const a of achados) expect(Object.keys(a).sort()).toEqual(["categoria", "id", "nome", "slug"]);
+  });
+
+  it("o mapeamento em regras.ts e o componente Parecidos não citam campos de estoque", () => {
+    const regras = fontes["regras.ts"];
+    expect(regras).toMatch(/\.map\(\(\{ b \}\) => \(\{ id: b\.id, slug: b\.slug, nome: b\.nome, categoria: b\.categoria \}\)\)/);
+    const { exibivel } = varrer(fontes["telas/solicitante/sugestao/Parecidos.tsx"]);
+    expect(exibivel).not.toMatch(/\b(?:saldo|reserva|minimo|disponivel)\b/);
+    expect(exibivel).toMatch(/b\.slug/);
+  });
+
+  it("Sugerir.tsx mostra os parecidos sem bloquear o envio", () => {
+    const { exibivel } = varrer(fontes["telas/solicitante/Sugerir.tsx"]);
+    expect(exibivel).toMatch(/<Parecidos itens=\{parecidos\}/);
+    expect(exibivel).not.toMatch(/disabled=\{[^}]*parecidos/);
+  });
+});
+
+/* ---- 23. Cartão de sugestão da gestão (Req. 16.25 a 16.29, 16.34) ---- */
+
+/** Arquivos do cartão de sugestão da gestão. */
+const arquivosDoCartaoDaGestao = ["telas/gestao/Sugestoes.tsx", "telas/gestao/DetalhesSugestao.tsx"];
+
+describe("guarda 23: cartão de sugestão da gestão", () => {
+  // **Validates: Requirements 16.25, 16.27, 16.28, 16.34**
+  it("os arquivos verificados existem", () => {
+    for (const a of arquivosDoCartaoDaGestao) expect(arquivos).toContain(a);
+  });
+
+  it("o link abre em nova aba com rel noopener noreferrer e só para http/https (via linkSeguro)", () => {
+    const { exibivel } = varrer(fontes["telas/gestao/DetalhesSugestao.tsx"]);
+    expect(exibivel).toMatch(/target="_blank"/);
+    expect(exibivel).toMatch(/rel="noopener noreferrer"/);
+    expect(exibivel).toMatch(/linkSeguro\(s\.link\)/);
+    expect(exibivel).toMatch(/href=\{link\}/);
+    expect(exibivel).not.toMatch(/href=\{s\.link/);
+  });
+
+  it("os blocos de sugestão não contêm termos de estoque (nem em comentário)", () => {
+    for (const a of arquivosDoCartaoDaGestao) {
+      const texto = semAcento(fontes[a]);
+      expect({ a, disponivel: texto.includes("disponive") }).toEqual({ a, disponivel: false });
+      expect({ a, saldo: /\bsaldo/.test(texto) }).toEqual({ a, saldo: false });
+      expect({ a, reserva: texto.includes("reserva") }).toEqual({ a, reserva: false });
+      expect({ a, minimo: texto.includes("minimo") }).toEqual({ a, minimo: false });
+      expect({ a, campo: /\.(?:saldo|reserva|minimo)\b/.test(texto) }).toEqual({ a, campo: false });
+    }
+  });
+
+  it("'Criar rascunho no Cadastro' existe uma vez e só dentro do ramo de sugestão aprovada", () => {
+    const { exibivel } = varrer(fontes["telas/gestao/Sugestoes.tsx"]);
+    expect(exibivel.match(/Criar rascunho no Cadastro/g) ?? []).toHaveLength(1);
+    expect(exibivel).toMatch(/s\.estado === "aprovada" && \(\s*<div[^>]*>\s*<button type="button" onClick=\{criarRascunho\}[^>]*>\s*Criar rascunho no Cadastro/);
+  });
+
+  it("os detalhes ficam depois dos botões Aprovar e Recusar, para abrir sem mover os controles", () => {
+    const { exibivel } = varrer(fontes["telas/gestao/Sugestoes.tsx"]);
+    expect(exibivel.indexOf("Recusar")).toBeGreaterThan(-1);
+    expect(exibivel.indexOf("Ver detalhes")).toBeGreaterThan(exibivel.indexOf("Recusar"));
+    expect(exibivel).toMatch(/aria-expanded=\{detalhes\}/);
+  });
+
+  it("os parecidos da gestão mostram só nome e link, e o Cadastro consome o rascunho", () => {
+    const { exibivel } = varrer(fontes["telas/gestao/DetalhesSugestao.tsx"]);
+    expect(exibivel).toMatch(/href=\{href\(`brinde\/\$\{b\.slug\}`\)\}/);
+    expect(fontes["telas/gestao/Cadastro.tsx"]).toMatch(/consumirRascunhoCadastro\(\)/);
   });
 });

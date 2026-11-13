@@ -18,6 +18,7 @@ import type {
   Metricas,
   Movimentacao,
   Pedido,
+  DadosSugestao,
   Sugestao,
   Urgencia,
   ValorPedido,
@@ -640,17 +641,119 @@ export function alternarAtivo(e: Estado, id: string): Estado {
 /* Sugestões                                                           */
 /* ------------------------------------------------------------------ */
 
-export function criarSugestao(e: Estado, autorId: string, nome: string, descricao: string): Estado {
+export type CampoSugestao = "nome" | "link" | "quantidadeEstimada" | "dataNecessaria" | "porQueCombina";
+
+export const LIMITE_POR_QUE_COMBINA = 280;
+
+function textoPreenchido(t: string | undefined): boolean {
+  return (t ?? "").trim() !== "";
+}
+
+function urlHttp(t: string): boolean {
+  try {
+    const u = new URL(t.trim());
+    return (u.protocol === "http:" || u.protocol === "https:") && u.hostname !== "";
+  } catch {
+    return false;
+  }
+}
+
+/** Valida só o que foi preenchido; o nome é o único campo obrigatório (Req. 16.9 a 16.13). */
+export function validarSugestao(
+  dados: DadosSugestao,
+  hoje: string,
+): { ok: boolean; erros: Partial<Record<CampoSugestao, string>> } {
+  const erros: Partial<Record<CampoSugestao, string>> = {};
+  if (!textoPreenchido(dados.nome)) erros.nome = "Informe o nome do brinde.";
+  if (textoPreenchido(dados.link) && !urlHttp(dados.link as string)) {
+    erros.link = "Informe um link que comece com http:// ou https://.";
+  }
+  const q = dados.quantidadeEstimada;
+  if (q !== undefined && q !== null && !(Number.isInteger(q) && q >= 1)) {
+    erros.quantidadeEstimada = "Informe uma quantidade inteira, a partir de 1.";
+  }
+  if (textoPreenchido(dados.dataNecessaria)) {
+    const dt = (dados.dataNecessaria as string).trim();
+    if (!dataValida(dt) || dt < hoje) erros.dataNecessaria = "Escolha uma data a partir de hoje.";
+  }
+  if ((dados.porQueCombina ?? "").length > LIMITE_POR_QUE_COMBINA) {
+    erros.porQueCombina = "Use até 280 caracteres em Por que combina com a marca.";
+  }
+  return { ok: Object.keys(erros).length === 0, erros };
+}
+
+/** Quantos dos 9 Detalhes do Indicador_de_Detalhes estão preenchidos (0 a 9). */
+export function detalhesPreenchidos(d: DadosSugestao): number {
+  const lista = (l: string[] | undefined) => (l ?? []).length > 0;
+  const itens = [
+    textoPreenchido(d.categoria),
+    textoPreenchido(d.descricao),
+    textoPreenchido(d.porQueCombina),
+    textoPreenchido(d.link) || textoPreenchido(d.fotoReferencia),
+    lista(d.ocasioes),
+    lista(d.publicos),
+    textoPreenchido(d.dataNecessaria) || d.frequencia !== undefined,
+    d.quantidadeEstimada !== undefined && d.quantidadeEstimada !== null,
+    d.faixaCusto !== undefined || d.comLogo !== undefined,
+  ];
+  return itens.filter(Boolean).length;
+}
+
+function semAcento(t: string): string {
+  return t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+/** Brindes ativos de nome ou categoria parecidos; devolve só campos públicos, nunca estoque (Req. 16.15 e 16.16). */
+export function brindesParecidos(
+  brindes: Brinde[],
+  nome: string,
+  categoria?: string,
+): { id: string; slug: string; nome: string; categoria: string }[] {
+  const texto = semAcento(nome);
+  const cat = categoria ? semAcento(categoria) : "";
+  const palavras = texto.split(/[^a-z0-9]+/).filter((p) => p.length >= 4);
+  const pontuados: { pontos: number; b: Brinde }[] = [];
+  for (const b of brindes) {
+    if (!b.ativo) continue;
+    const bn = semAcento(b.nome);
+    let pontos = 0;
+    if (texto.length >= 3 && (bn.includes(texto) || texto.includes(bn))) pontos = 3;
+    else {
+      const bp = bn.split(/[^a-z0-9]+/).filter((p) => p.length >= 4);
+      if (palavras.some((p) => bp.includes(p))) pontos = 2;
+      else if (cat !== "" && semAcento(b.categoria) === cat) pontos = 1;
+    }
+    if (pontos > 0) pontuados.push({ pontos, b });
+  }
+  pontuados.sort((x, y) => y.pontos - x.pontos || x.b.nome.localeCompare(y.b.nome, "pt-BR"));
+  return pontuados.slice(0, 3).map(({ b }) => ({ id: b.id, slug: b.slug, nome: b.nome, categoria: b.categoria }));
+}
+
+export function criarSugestao(e: Estado, autorId: string, dados: DadosSugestao): Estado {
   const d = clonar(e);
   achar(d.pessoas, autorId, "Pessoa");
+  const v = validarSugestao(dados, hojeDe(d));
+  if (!v.ok) throw new Error(Object.values(v.erros)[0]);
   const s: Sugestao = {
     id: proximoId(d, "S"),
     autorId,
-    nome: textoObrigatorio(nome, "Informe o nome do brinde."),
-    descricao: descricao.trim(),
+    nome: dados.nome.trim(),
+    descricao: (dados.descricao ?? "").trim(),
     estado: "sugerida",
     em: d.agora,
   };
+  const texto = (t: string | undefined) => (t ?? "").trim();
+  if (texto(dados.categoria)) s.categoria = texto(dados.categoria);
+  if (texto(dados.porQueCombina)) s.porQueCombina = texto(dados.porQueCombina);
+  if (texto(dados.link)) s.link = texto(dados.link);
+  if (texto(dados.fotoReferencia)) s.fotoReferencia = texto(dados.fotoReferencia);
+  if (dados.ocasioes && dados.ocasioes.length > 0) s.ocasioes = [...dados.ocasioes];
+  if (dados.publicos && dados.publicos.length > 0) s.publicos = [...dados.publicos];
+  if (texto(dados.dataNecessaria)) s.dataNecessaria = texto(dados.dataNecessaria);
+  if (dados.frequencia) s.frequencia = dados.frequencia;
+  if (dados.quantidadeEstimada !== undefined && dados.quantidadeEstimada !== null) s.quantidadeEstimada = dados.quantidadeEstimada;
+  if (dados.faixaCusto) s.faixaCusto = dados.faixaCusto;
+  if (dados.comLogo) s.comLogo = dados.comLogo;
   d.sugestoes.push(s);
   return d;
 }

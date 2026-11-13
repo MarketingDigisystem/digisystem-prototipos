@@ -5,12 +5,17 @@
 //
 // Fila de sugestões de brinde com abas. Cada cartão tem sempre o campo de motivo e a faixa de erro, então as ações não se movem.
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { estiloEntrada } from "../../movimento";
+import { brindesParecidos } from "../../regras";
+import { navegar } from "../../rota";
 import { useLoja } from "../../store";
+import { chipsDaSugestao, rascunhoDaSugestao } from "../../sugestaoOpcoes";
 import type { EstadoSugestao, Sugestao } from "../../tipos";
 import { useFaixaRolante } from "../../ui";
 import { BTN_PRIMARIO, BTN_SECUNDARIO, CAMPO, Contador, ErroInline, PILL, PILL_ATIVO, PILL_INATIVO, formatarInstante } from "./comum";
+import { DetalhesSugestao, temDetalhes } from "./DetalhesSugestao";
 
 type Aba = "analisar" | "aprovadas" | "recusadas" | "todas";
 const ABAS: { id: Aba; rotulo: string; estados: EstadoSugestao[] }[] = [
@@ -38,6 +43,21 @@ function Cartao({ s, indice }: { s: Sugestao; indice: number }) {
   const [motivo, setMotivo] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const aberta = s.estado === "sugerida" || s.estado === "em_analise";
+  const [detalhes, setDetalhes] = useState(false);
+  const idDetalhes = useId();
+  const { brindes } = loja.dados;
+  // Só nome, slug, categoria: brindesParecidos não devolve números do catálogo.
+  const parecidos = useMemo(
+    () => brindesParecidos(brindes, s.nome, s.categoria && s.categoria !== "Outra" ? s.categoria : undefined),
+    [brindes, s.nome, s.categoria],
+  );
+  const chips = chipsDaSugestao(s);
+  const tem = temDetalhes(s, parecidos);
+
+  const criarRascunho = () => {
+    loja.definirRascunhoCadastro(rascunhoDaSugestao(s));
+    navegar("gestao/cadastro");
+  };
 
   const executar = (r: ReturnType<typeof loja.analisarSugestao>) => {
     if (r.ok) setMotivo("");
@@ -59,6 +79,15 @@ function Cartao({ s, indice }: { s: Sugestao; indice: number }) {
       </div>
       {s.descricao && <p className="mt-2 text-sm text-foreground/90">{s.descricao}</p>}
       {s.estado === "recusada" && s.motivo && <p className="mt-2 text-sm">Motivo da recusa: {s.motivo}</p>}
+      {chips.length > 0 && (
+        <ul aria-label="Resumo da sugestão" className="mt-2 flex flex-wrap gap-1.5">
+          {chips.map((c, i) => (
+            <li key={`${c}-${i}`} className="inline-flex min-h-7 items-center rounded-full bg-secondary px-3 py-0.5 text-xs font-semibold text-foreground ring-1 ring-border">
+              {c}
+            </li>
+          ))}
+        </ul>
+      )}
 
       {aberta && (
         <div className="mt-3 border-t pt-3">
@@ -84,6 +113,35 @@ function Cartao({ s, indice }: { s: Sugestao; indice: number }) {
               Recusar
             </button>
           </div>
+        </div>
+      )}
+
+      {s.estado === "aprovada" && (
+        <div className="mt-3 border-t pt-3">
+          <button type="button" onClick={criarRascunho} className={BTN_PRIMARIO}>
+            Criar rascunho no Cadastro
+          </button>
+        </div>
+      )}
+
+      {/* Os detalhes ficam ABAIXO dos botões de decisão: abrir ou fechar não move Aprovar nem Recusar. */}
+      {tem && (
+        <div className="mt-3 border-t pt-2">
+          <button
+            type="button"
+            aria-expanded={detalhes}
+            aria-controls={idDetalhes}
+            onClick={() => setDetalhes((v) => !v)}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 font-display text-sm font-bold text-navy hover:bg-navy-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]"
+          >
+            {detalhes ? "Ocultar detalhes" : "Ver detalhes"}
+            <ChevronDown className={`size-4 ${detalhes ? "rotate-180" : ""}`} aria-hidden />
+          </button>
+          {detalhes && (
+            <div id={idDetalhes} className="mt-2">
+              <DetalhesSugestao s={s} parecidos={parecidos} />
+            </div>
+          )}
         </div>
       )}
     </li>

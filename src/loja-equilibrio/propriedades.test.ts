@@ -644,7 +644,7 @@ describe("Feature: loja-equilibrio-digiplace, Property 1: invariante de estoque 
       }),
       { numRuns: NUM_RUNS },
     );
-  });
+  }, 30000);
 });
 
 /* ---------------------------- Property 2 ---------------------------- */

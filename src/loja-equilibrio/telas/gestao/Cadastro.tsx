@@ -6,7 +6,7 @@
 // Cadastro de brindes (mock): lista com ativar/desativar e formulário em diálogo fixo para criar ou editar.
 // Saldo e reserva nunca são editados aqui: entram pelo Estoque (entrada/ajuste), para a conta continuar fechando.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Plus } from "lucide-react";
 import { useLoja } from "../../store";
 import type { Brinde, DadosBrinde, TipoBrinde } from "../../tipos";
@@ -211,6 +211,13 @@ export function Cadastro() {
   const { dados } = loja;
   const [formulario, setFormulario] = useState<Brinde | null>(null);
   const [erro, setErro] = useState<{ id: string; texto: string } | null>(null);
+
+  // Rascunho vindo de uma sugestão aprovada: lido e apagado uma única vez, abre o Novo brinde preenchido sem salvar nada.
+  const { consumirRascunhoCadastro } = loja;
+  useEffect(() => {
+    const r = consumirRascunhoCadastro();
+    if (r) setFormulario({ ...rascunhoNovo(), nome: r.nome, categoria: r.categoria, descricao: r.descricao });
+  }, [consumirRascunhoCadastro]);
 
   const alternar = (id: string) => {
     const r = loja.alternarAtivo(id);

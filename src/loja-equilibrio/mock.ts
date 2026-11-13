@@ -219,6 +219,27 @@ const SUGESTOES: Sugestao[] = [
   { id: "S-1", autorId: "d1", nome: "Porta-cartão de couro", descricao: "Para entregar em visitas a clientes e em eventos.", estado: "sugerida", em: "2026-11-09T10:00:00" },
   { id: "S-2", autorId: "d3", nome: "Almofada de pescoço", descricao: "Para a equipe que viaja a campo e a feiras.", estado: "aprovada", em: "2026-11-03T15:00:00" },
   { id: "S-3", autorId: "d4", nome: "Kit de sementes", descricao: "Brinde de fim de ano para fornecedores.", estado: "recusada", motivo: "Custo unitário acima da faixa prevista para brindes.", em: "2026-10-21T09:00:00" },
+  {
+    id: "S-4", autorId: "d2", nome: "Caneta ecológica de papel reciclado", descricao: "Caneta de papel reciclado com a marca Digisystem, para distribuir em eventos.",
+    estado: "sugerida", em: "2026-11-10T09:30:00", categoria: "Escritório",
+    porQueCombina: "Reforça o compromisso da Digisystem com sustentabilidade e combina com o azul e o laranja da marca.",
+    link: "https://exemplo.com.br/caneta-papel-reciclado", fotoReferencia: "caneta-reciclada.jpg",
+    ocasioes: ["Evento", "Feira"], publicos: ["Clientes", "Parceiros"], dataNecessaria: "2026-12-05", frequencia: "uma_vez",
+    quantidadeEstimada: 300, faixaCusto: "ate_10", comLogo: "com_logo",
+  },
+  { id: "S-5", autorId: "d5", nome: "Squeeze de alumínio", descricao: "", estado: "sugerida", em: "2026-11-10T16:20:00" },
+  {
+    id: "S-6", autorId: "d1", nome: "Mochila executiva", descricao: "Mochila para notebook, para presentear clientes estratégicos.",
+    estado: "aprovada", em: "2026-11-04T11:00:00", categoria: "Outra",
+    porQueCombina: "Clientes que visitam a Digisystem costumam carregar notebook e a mochila leva a marca no dia a dia.",
+    link: "https://exemplo.com.br/mochila-executiva", ocasioes: ["Visita a cliente", "Boas-vindas"], publicos: ["Clientes"],
+    frequencia: "trimestral", quantidadeEstimada: 20, faixaCusto: "60_120", comLogo: "com_logo",
+  },
+  {
+    id: "S-7", autorId: "d3", nome: "Boné bordado", descricao: "Boné com logo bordado para a equipe de campo.",
+    estado: "recusada", motivo: "Já existe item parecido em negociação com o fornecedor atual.", em: "2026-10-28T14:00:00",
+    categoria: "Outra", ocasioes: ["Treinamento"], publicos: ["Equipe interna"], quantidadeEstimada: 50, faixaCusto: "10_30", comLogo: "com_logo",
+  },
 ];
 
 /* ------------------------------ Estado ------------------------------- */
