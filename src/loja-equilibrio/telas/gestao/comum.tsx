@@ -42,6 +42,16 @@ export function SeloEstado({ estado }: { estado: EstadoPedido }) {
   return <span className={`${SELO} ${COR_ESTADO[estado]}`}>{ROTULO_ESTADO[estado]}</span>;
 }
 
+/** Selo de aviso da gestão. Largura fixa: aparecer ou sumir não move o resto da linha. Texto escuro sobre o amarelo da marca. */
+export function SeloAcimaDoEstoque() {
+  return <span className={`${SELO} w-[7.75rem] justify-center bg-warning text-[color:var(--on-accent)]`}>Acima do estoque</span>;
+}
+
+/** Chip dos pedidos que já podem receber reserva depois de uma entrada. */
+export function SeloPodeReservar() {
+  return <span className={`${SELO} w-[6.5rem] justify-center bg-sky-soft text-navy ring-1 ring-sky`}>Pode reservar</span>;
+}
+
 /** Selo de urgência pela data desejada. Só vale para pedido em andamento; o resto mostra a data em texto simples. */
 export function SeloUrgencia({ urgencia, data, ativo }: { urgencia: Urgencia; data?: string; ativo: boolean }) {
   const dd = data ? formatarDia(data) : "";

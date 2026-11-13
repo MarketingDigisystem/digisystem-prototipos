@@ -56,7 +56,7 @@ export function Sugerir() {
                 setNome(e.target.value);
                 setMsg(null);
               }}
-              placeholder="Ex.: Garrafa térmica"
+              placeholder="Ex.: Mouse pad ergonômico"
               aria-required
             />
           </label>

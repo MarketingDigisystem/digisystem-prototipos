@@ -422,3 +422,124 @@ describe("guarda 14: movimento da faixa respeita prefers-reduced-motion", () => 
     else expect(exibivel).not.toMatch(/animate-|transition/);
   });
 });
+
+/* ================================================================ */
+/* Guardas 15 a 19 (tarefa 15.5)                                     */
+/* ================================================================ */
+
+import { ESTADO_INICIAL } from "./mock";
+import {
+  MSG_CIENCIA_OBRIGATORIA, TEXTO_AVISO_ACIMA_ESTOQUE, TEXTO_AVISO_REPOSICAO, TEXTO_CIENCIA, TEXTO_DATA_NAO_GARANTIDA,
+} from "./avisos";
+
+/** Arquivos que o diretor enxerga: telas/solicitante, Carrinho, preço, total, aviso e os componentes compartilhados. */
+const arquivosDoDiretor = arquivos.filter(
+  (a) =>
+    a.startsWith("telas/solicitante/") ||
+    ["CarrinhoPainel.tsx", "PrecoBrinde.tsx", "TotalPedido.tsx", "AvisoAcimaDoEstoque.tsx", "ui.tsx"].includes(a),
+);
+
+/* ---- 15. Termos de estoque proibidos ao diretor ---- */
+
+describe("guarda 15: o diretor não vê 'disponíveis', 'Últimas unidades' nem 'Indisponível no momento'", () => {
+  // **Validates: Requirements 14.1, 14.2**
+  it("o conjunto verificado inclui as telas do solicitante e os componentes nomeados", () => {
+    expect(arquivosDoDiretor).toEqual(
+      expect.arrayContaining(["CarrinhoPainel.tsx", "PrecoBrinde.tsx", "ui.tsx", "AvisoAcimaDoEstoque.tsx", "telas/solicitante/Vitrine.tsx"]),
+    );
+    expect(arquivosDoDiretor.length).toBeGreaterThanOrEqual(11);
+  });
+
+  it.each(arquivosDoDiretor)("%s não exibe os termos proibidos", (arquivo) => {
+    const { exibivel } = varrer(fontes[arquivo]);
+    expect(exibivel).not.toMatch(/disponíve/i);
+    expect(exibivel).not.toMatch(/Últimas unidades/i);
+    expect(exibivel).not.toMatch(/Indisponível no momento/i);
+  });
+});
+
+/* ---- 16. Telas do diretor não leem estoque ---- */
+
+describe("guarda 16: as telas do diretor não importam nem leem dados de estoque", () => {
+  // **Validates: Requirements 14.1, 14.2, 14.9**
+  it.each(arquivosDoDiretor)("%s não usa disponivel, selosDeEstoque, .saldo, .reserva nem .minimo", (arquivo) => {
+    const { exibivel } = varrer(fontes[arquivo]);
+    expect(exibivel).not.toMatch(/\bdisponivel\b/);
+    expect(exibivel).not.toMatch(/\bselosDeEstoque\b/);
+    expect(exibivel).not.toMatch(/\.(?:saldo|reserva|minimo)\b/);
+  });
+});
+
+/* ---- 17. Textos do aviso, da ciência e da reposição ---- */
+
+describe("guarda 17: textos exatos do aviso, da ciência e da reposição, sem dígito", () => {
+  // **Validates: Requirements 14.9, 14.10, 15.15**
+  const exatos: Record<string, string> = {
+    TEXTO_AVISO_ACIMA_ESTOQUE: "Essa quantidade passa do que temos em estoque agora. Você pode solicitar mesmo assim, mas o prazo será maior e o Marketing vai alinhar com você.",
+    TEXTO_CIENCIA: "Estou ciente de que o prazo será maior e de que o Marketing vai alinhar comigo",
+    MSG_CIENCIA_OBRIGATORIA: "Marque a ciência de que o prazo será maior para enviar este pedido.",
+    TEXTO_AVISO_REPOSICAO: "Parte deste pedido aguarda reposição de estoque; o Marketing vai alinhar o prazo com você",
+    TEXTO_DATA_NAO_GARANTIDA: "A data desejada não é garantida porque parte do pedido aguarda reposição de estoque.",
+  };
+  const valores: Record<string, string> = {
+    TEXTO_AVISO_ACIMA_ESTOQUE, TEXTO_CIENCIA, MSG_CIENCIA_OBRIGATORIA, TEXTO_AVISO_REPOSICAO, TEXTO_DATA_NAO_GARANTIDA,
+  };
+
+  it.each(Object.keys(exatos))("%s tem o texto exato, presente em avisos.ts e sem dígito", (nome) => {
+    expect(valores[nome]).toBe(exatos[nome]);
+    expect(fontes["avisos.ts"]).toContain(exatos[nome]);
+    expect(valores[nome]).not.toMatch(/\d/);
+  });
+
+  it("o aviso, a ciência e a reposição aparecem nas telas pelas constantes, nunca com texto repetido à mão", () => {
+    for (const a of arquivosDoDiretor.filter((x) => x !== "TotalPedido.tsx")) {
+      for (const texto of Object.values(exatos)) expect({ a, repetido: fontes[a].includes(texto) }).toEqual({ a, repetido: false });
+    }
+    expect(fontes["AvisoAcimaDoEstoque.tsx"]).toMatch(/TEXTO_AVISO_ACIMA_ESTOQUE/);
+    expect(fontes["AvisoAcimaDoEstoque.tsx"]).toMatch(/TEXTO_AVISO_REPOSICAO/);
+    expect(fontes["telas/solicitante/Revisao.tsx"]).toMatch(/TEXTO_CIENCIA/);
+    expect(fontes["telas/solicitante/Revisao.tsx"]).toMatch(/TEXTO_DATA_NAO_GARANTIDA/);
+  });
+
+  it("Pedidos e Linha do tempo só mostram o aviso de reposição por aguardaReposicao", () => {
+    expect(fontes["telas/solicitante/Pedidos.tsx"]).toMatch(/AvisoDeReposicao visivel=\{aguardaReposicao\(p\)\}/);
+    expect(fontes["telas/solicitante/LinhaDoTempo.tsx"]).toMatch(/AvisoDeReposicao visivel=\{aguardaReposicao\}/);
+  });
+});
+
+/* ---- 18. Fotos por BASE_URL ---- */
+
+describe("guarda 18: fotos referenciadas por urlDaFoto/BASE_URL", () => {
+  // **Validates: Requirements 13.6, 9.3**
+  const tsx = arquivos.filter((a) => a.endsWith(".tsx"));
+
+  it("ui.tsx resolve a foto com urlDaFoto e import.meta.env.BASE_URL", () => {
+    expect(fontes["ui.tsx"]).toMatch(/urlDaFoto\(src, import\.meta\.env\.BASE_URL\)/);
+  });
+
+  it.each(tsx.filter((a) => /<img\b/.test(fontes[a])))("%s: todo <img> vive num arquivo que usa BASE_URL", (arquivo) => {
+    expect(fontes[arquivo]).toContain("import.meta.env.BASE_URL");
+  });
+
+  it.each(tsx.filter((a) => a !== "telas/gestao/Cadastro.tsx"))("%s não tem literal '/brindes/' (só mock e Cadastro, que são dados)", (arquivo) => {
+    expect(varrer(fontes[arquivo]).exibivel).not.toMatch(/["'`]\/brindes\//);
+  });
+
+  it("o mock e o Cadastro guardam os caminhos como dados: o mock cita /brindes/ e o Cadastro monta a lista a partir dele", () => {
+    expect(fontes["mock.ts"]).toContain("/brindes/");
+    expect(fontes["telas/gestao/Cadastro.tsx"]).toContain("/brindes/");
+  });
+});
+
+/* ---- 19. Catálogo e fotos ---- */
+
+describe("guarda 19: catálogo oficial", () => {
+  // **Validates: Requirements 13.1, 13.6**
+  // As 8 fotos (existência, kebab-case, 800x800 e até 160 KB, sem sobra) são conferidas em catalogo.test.ts.
+  it("o catálogo tem 7 brindes, 1 personalizável e 6 de estoque, e cada um cita a foto principal", () => {
+    expect(ESTADO_INICIAL.brindes).toHaveLength(7);
+    expect(ESTADO_INICIAL.brindes.filter((b) => b.tipo === "personalizavel")).toHaveLength(1);
+    expect(ESTADO_INICIAL.brindes.filter((b) => b.tipo === "estoque")).toHaveLength(6);
+    expect(ESTADO_INICIAL.brindes.every((b) => b.foto.startsWith("/brindes/"))).toBe(true);
+  });
+});

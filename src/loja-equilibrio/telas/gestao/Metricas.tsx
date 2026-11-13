@@ -193,7 +193,7 @@ export function Metricas() {
         <p className="text-sm text-muted-foreground">{rotuloDoMes(mes)}</p>
       </div>
 
-      {/* KPIs: sempre os mesmos 5 cartões, só os valores mudam. */}
+      {/* KPIs: sempre os mesmos 7 cartões, só os valores mudam. */}
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
         <div className="col-span-2 lg:col-span-1">
           <Kpi
@@ -231,6 +231,17 @@ export function Metricas() {
           rotulo="Linhas a avaliar"
           valor={String(m.linhasAAvaliar)}
           nota="Personalizáveis sem orçamento aceito; fora dos totais."
+        />
+        {/* Só da gestão (Req. 15.17), estado de hoje: mesmos cartões, mesma altura de nota. */}
+        <Kpi
+          rotulo="Pedidos acima do estoque"
+          valor={String(m.pedidosAcimaDoEstoque)}
+          nota="Recebidos ou em preparação com parte aguardando reposição."
+        />
+        <Kpi
+          rotulo="Unidades aguardando reposição"
+          valor={String(m.unidadesPendentes)}
+          nota="Soma do pendente desses pedidos, hoje."
         />
       </div>
 

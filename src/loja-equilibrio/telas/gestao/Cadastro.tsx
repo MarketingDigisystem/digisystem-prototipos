@@ -14,13 +14,13 @@ import { SAIDA_DIALOGO_MS, estiloEntrada } from "../../movimento";
 import { FotoBrinde, Msg, useSaidaAnimada } from "../../ui";
 import { BTN_PRIMARIO, BTN_SECUNDARIO, CAMPO, Campo, Dialogo, ErroInline, PILL, PILL_ATIVO, PILL_INATIVO } from "./comum";
 
-/** Fotos disponíveis em public/brindes/ (conferidas no disco em 2026-11-11). */
+/** Fotos disponíveis em public/brindes/ (as 8 fotos oficiais do Marketplace, conferidas no disco em 2026-11-12). */
 const FOTOS = [
-  "bloco-adesivo", "caderno-caneta", "caderno", "camiseta", "caneca", "caneta", "chaveiro", "ecobag",
-  "folder", "garrafa", "mochila", "moleskine", "powerbank", "squeeze",
-].map((n) => `/brindes/${n}.png`);
+  "kit-churrasco-aberto", "estojo-churrasco-fechado", "caderno-bambu-laranja", "caneta-azul-touch",
+  "caderno-espiral-35-anos", "caderneta-azul-digisystem", "caderneta-azul-35-anos", "copo-termico",
+].map((n) => `/brindes/${n}.jpg`);
 
-const CATEGORIAS_SUGERIDAS = ["Escritório", "Bem-estar", "Tecnologia", "Vestuário", "Acessórios"];
+const CATEGORIAS_SUGERIDAS = ["Escritório", "Casa e lazer", "Bem-estar"];
 
 function rascunhoNovo(): Brinde {
   return {
@@ -147,7 +147,7 @@ function FormularioBrinde({ inicial, onFechar: aoFechar }: { inicial: Brinde; on
                 className={`relative overflow-hidden rounded-xl border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--le-foco)] ${b.foto === f ? "ring-2 ring-inset ring-sky" : ""}`}
               >
                 <FotoBrinde src={f} alt="" compacto />
-                <span className="sr-only">{`Foto ${f.replace("/brindes/", "").replace(".png", "")}`}</span>
+                <span className="sr-only">{`Foto ${f.replace("/brindes/", "").replace(".jpg", "")}`}</span>
                 {b.foto === f && (
                   <span className="absolute right-1 top-1 grid size-5 place-items-center rounded-full bg-navy text-navy-foreground" aria-hidden>
                     <Check className="size-3" strokeWidth={3} />

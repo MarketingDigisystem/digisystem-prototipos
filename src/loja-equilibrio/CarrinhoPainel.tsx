@@ -8,8 +8,9 @@
 
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { AvisoAcimaDoEstoque } from "./AvisoAcimaDoEstoque";
 import { PrecoBrinde } from "./PrecoBrinde";
-import { precoDaLinhaDoCarrinho, totalDoCarrinho } from "./regras";
+import { linhasAcimaDoEstoque, precoDaLinhaDoCarrinho, totalDoCarrinho } from "./regras";
 import { TotalPedido } from "./TotalPedido";
 import { navegar } from "./rota";
 import { useLoja, type LinhaCarrinho } from "./store";
@@ -19,7 +20,8 @@ import { FotoBrinde, Msg, useArmadilhaFoco, useSaidaAnimada } from "./ui";
 const CAMPO =
   "h-11 w-full rounded-2xl border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]";
 
-function ItemCarrinho({ l }: { l: LinhaCarrinho }) {
+/** `acima`: esta linha passa do estoque de agora (booleano; o número nunca chega aqui). */
+function ItemCarrinho({ l, acima }: { l: LinhaCarrinho; acima: boolean }) {
   const loja = useLoja();
   const b = loja.brinde(l.brindeId);
   const [texto, setTexto] = useState(String(l.qtd));
@@ -83,6 +85,8 @@ function ItemCarrinho({ l }: { l: LinhaCarrinho }) {
               Remover
             </button>
           </div>
+          {/* Brinde de estoque reserva a faixa do aviso (3 linhas), com ou sem aviso: Qtd. e Remover não se movem. Personalizável não tem aviso. */}
+          {b.tipo === "estoque" && <AvisoAcimaDoEstoque visivel={acima} pequeno className="mt-2" />}
           <p role={erro ? "alert" : undefined} className="absolute inset-x-3 bottom-px text-xs font-semibold leading-4 text-[color:var(--destructive-strong)]">
             <Msg texto={erro} />
           </p>
@@ -109,6 +113,8 @@ export function CarrinhoPainel() {
 
   // Total só das linhas com preço; as personalizáveis sem orçamento ficam fora e contam como "a avaliar".
   const { total, aAvaliar } = totalDoCarrinho(loja.dados.brindes, loja.carrinho);
+  // Linhas que passam do estoque de agora (itens do mesmo brinde somam na ordem).
+  const acimaDoEstoque = new Set(linhasAcimaDoEstoque(loja.dados.brindes, loja.carrinho));
 
   const revisar = () => {
     loja.abrirCarrinho(false);
@@ -151,8 +157,8 @@ export function CarrinhoPainel() {
             </p>
           ) : (
             <ul>
-              {loja.carrinho.map((l) => (
-                <ItemCarrinho key={l.chave} l={l} />
+              {loja.carrinho.map((l, i) => (
+                <ItemCarrinho key={l.chave} l={l} acima={acimaDoEstoque.has(i)} />
               ))}
             </ul>
           )}

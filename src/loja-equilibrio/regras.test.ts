@@ -11,8 +11,10 @@ import { ESTADO_INICIAL, HOJE } from "./mock";
 import {
   aceitarOrcamento, alertasMinimo, criarPedido, dataMinima, disponivel, esgotados, historicoBrinde,
   informarOrcamento, metricasDoPeriodo, mudarEstado, popularidade, registrarAjuste, registrarEntrada,
-  selos, urgencia, validarDataDesejada, validarLinha, valorDoPedido, valorEmEstoque,
+  ajustarQuantidadeLinha, linhasAcimaDoEstoque, pedidosQuePodemReceberReserva, reconstruirEstoque, reservarReposicao,
+  selosDeEstoque, selosDoDiretor, urgencia, validarDataDesejada, validarLinha, valorDoPedido, valorEmEstoque,
 } from "./regras";
+import { MSG_CIENCIA_OBRIGATORIA } from "./avisos";
 import type { Estado } from "./tipos";
 
 const base: Estado = ESTADO_INICIAL;
@@ -40,7 +42,7 @@ describe("estoque e selos", () => {
   it("pedidos e movimentações do mock identificam o brinde sem campo de item legado", () => {
     for (const p of base.pedidos) {
       for (const l of p.linhas) {
-        expect(Object.keys(l).every((k) => ["brindeId", "qtd", "tipo", "custoUnitarioNaHora", "personalizacao", "orcamentoUnitario", "orcamentoAceito", "notaAjuste"].includes(k))).toBe(true);
+        expect(Object.keys(l).every((k) => ["brindeId", "qtd", "tipo", "qtdReservada", "qtdPendente", "acimaDoEstoque", "custoUnitarioNaHora", "personalizacao", "orcamentoUnitario", "orcamentoAceito", "notaAjuste"].includes(k))).toBe(true);
       }
     }
     for (const m of base.movimentacoes) {
@@ -58,16 +60,69 @@ describe("estoque e selos", () => {
     expect(junto.saldo - junto.reserva).toBe(itens.reduce((s, x) => s + x.saldo - x.reserva, 0));
   });
 
-  it("selos: últimas unidades até 5, indisponível em 0", () => {
-    expect(selos(brinde(base, "mochila")).ultimasUnidades).toBe(false); // saldo 17 − reserva 6 = 11
-    expect(selos(brinde(base, "bloco-adesivo"))).toMatchObject({ indisponivel: true, ultimasUnidades: false });
-    expect(selos(brinde(base, "camiseta")).novidade).toBe(true);
-    expect(selos(brinde(base, "camiseta")).indisponivel).toBe(false);
+  it("selos do diretor trazem só a novidade; selos de estoque ficam para a gestão", () => {
+    expect(selosDoDiretor(brinde(base, "caderno-espiral-35"))).toEqual({ novidade: true });
+    expect(selosDoDiretor(brinde(base, "caneta-azul-touch"))).toEqual({ novidade: false });
+    expect(selosDeEstoque(brinde(base, "caderno-bambu")).ultimasUnidades).toBe(false); // saldo 120 − reserva 18 = 102
+    expect(selosDeEstoque(brinde(base, "caneta-azul-touch"))).toEqual({ indisponivel: true, ultimasUnidades: false });
+    expect(selosDeEstoque(brinde(base, "caderno-espiral-35")).indisponivel).toBe(false);
+    expect(selosDeEstoque(brinde(base, "kit-churrasco"))).toEqual({ indisponivel: false, ultimasUnidades: false });
+  });
+
+  it("mock: P-2006 e P-2007 acima do estoque; antigos reservados por inteiro; recusado e cancelado 0/0", () => {
+    const p = (id: string) => base.pedidos.find((x) => x.id === id)!;
+    expect(p("P-2006").linhas[0]).toMatchObject({ qtd: 50, qtdReservada: 30, qtdPendente: 20, acimaDoEstoque: true });
+    expect(p("P-2006")).toMatchObject({ acimaDoEstoque: true, cienteAcimaEstoque: true, estado: "em_alinhamento" });
+    expect(p("P-2007")).toMatchObject({ estado: "solicitada", acimaDoEstoque: true, cienteAcimaEstoque: true });
+    expect(p("P-2007").linhas[0]).toMatchObject({ brindeId: "caneta-azul-touch", qtd: 150, qtdReservada: 0, qtdPendente: 150 });
+    expect(p("P-2005").linhas.map((l) => [l.qtdReservada, l.qtdPendente])).toEqual([[0, 0], [8, 0]]);
+    for (const x of base.pedidos) {
+      for (const l of x.linhas) {
+        expect(l.qtdReservada + l.qtdPendente === l.qtd || x.estado === "recusada" || x.estado === "cancelada" || l.tipo === "personalizavel").toBe(true);
+        if (x.estado === "recusada" || x.estado === "cancelada") expect([l.qtdReservada, l.qtdPendente, l.acimaDoEstoque]).toEqual([0, 0, false]);
+        if (l.tipo === "personalizavel") expect([l.qtdReservada, l.qtdPendente, l.acimaDoEstoque]).toEqual([0, 0, false]);
+        if (["pronto", "encerrada"].includes(x.estado) && l.tipo === "estoque") expect(l.qtdReservada).toBe(l.qtd);
+      }
+      expect(x.acimaDoEstoque).toBe(x.linhas.some((l) => l.qtdPendente > 0));
+    }
+  });
+
+  it("reconstruirEstoque soma só qtdReservada dos pedidos ativos e a conta fecha (saldo ≥ reserva ≥ 0)", () => {
+    const recon = reconstruirEstoque(base.brindes, base.pedidos, base.movimentacoes);
+    expect(recon).toEqual(base.brindes);
+    for (const b of base.brindes) {
+      const soma = base.pedidos
+        .filter((x) => ["solicitada", "em_alinhamento", "pronto"].includes(x.estado))
+        .flatMap((x) => x.linhas)
+        .filter((l) => l.brindeId === b.id)
+        .reduce((s, l) => s + l.qtdReservada, 0);
+      expect(b.reserva).toBe(soma);
+      expect(b.saldo).toBeGreaterThanOrEqual(b.reserva);
+      expect(b.reserva).toBeGreaterThanOrEqual(0);
+    }
+    expect(brinde(base, "caderno-espiral-35").reserva).toBe(45); // 30 do P-2006 + 15 do P-2009; os 20 pendentes não pesam
+    expect(brinde(base, "caneta-azul-touch")).toMatchObject({ saldo: 0, reserva: 0 });
   });
 
   it("alertas de mínimo e esgotados", () => {
-    expect(alertasMinimo(base).map((a) => a.brindeId)).toContain("squeeze"); // disp 35 < mínimo 40
-    expect(esgotados(base).map((a) => a.brindeId)).toEqual(["bloco-adesivo"]);
+    expect(alertasMinimo(base).map((a) => a.brindeId)).toEqual(["caderno-espiral-35"]); // disp 25 < mínimo 40
+    expect(esgotados(base).map((a) => a.brindeId)).toEqual(["caneta-azul-touch"]);
+  });
+
+  it("o catálogo do mock tem os 7 brindes oficiais, nesta ordem, e o kit churrasco tem segunda foto", () => {
+    expect(base.brindes.map((b) => b.id)).toEqual([
+      "kit-churrasco", "caderno-bambu", "caneta-azul-touch", "caderno-espiral-35", "caderneta-digisystem", "caderneta-35", "copo-termico",
+    ]);
+    expect(base.brindes.filter((b) => b.tipo === "personalizavel").map((b) => b.id)).toEqual(["kit-churrasco"]);
+    expect(base.brindes.filter((b) => b.fotoExtra).map((b) => b.id)).toEqual(["kit-churrasco"]);
+    expect(base.brindes.filter((b) => b.novidade).map((b) => b.id)).toEqual(["caderno-espiral-35", "caderneta-35"]);
+    expect(brinde(base, "kit-churrasco").descricao).toMatch(/placa metálica/);
+    expect(brinde(base, "kit-churrasco")).toMatchObject({ prazoExtraDiasUteis: 7, opcoesPersonalizacao: ["logo", "nome"] });
+    expect(
+      ["caderno-bambu", "caneta-azul-touch", "caderno-espiral-35", "caderneta-digisystem", "caderneta-35", "copo-termico"].map((id) => [
+        brinde(base, id).saldo, brinde(base, id).reserva, brinde(base, id).minimo,
+      ]),
+    ).toEqual([[120, 18, 30], [0, 0, 100], [70, 45, 40], [200, 40, 50], [85, 25, 30], [40, 12, 15]]);
   });
 
   it("valor em estoque soma saldo × custo", () => {
@@ -77,43 +132,198 @@ describe("estoque e selos", () => {
 
 describe("criarPedido", () => {
   it("reserva a quantidade de estoque e grava o custo na linha", () => {
-    const antes = disponivel(brinde(base, "caneca"));
-    const e = criarPedido(base, dados, [{ brindeId: "caneca", qtd: 4 }]);
-    expect(disponivel(brinde(e, "caneca"))).toBe(antes - 4);
+    const antes = disponivel(brinde(base, "caderno-bambu"));
+    const e = criarPedido(base, dados, [{ brindeId: "caderno-bambu", qtd: 4 }], false);
+    expect(disponivel(brinde(e, "caderno-bambu"))).toBe(antes - 4);
     const p = e.pedidos[e.pedidos.length - 1];
     expect(p.estado).toBe("solicitada");
     expect(p.areaSolicitante).toBe("Comercial");
-    expect(p.linhas[0].custoUnitarioNaHora).toBe(18.9);
+    expect(p.linhas[0].custoUnitarioNaHora).toBe(38.9);
+    expect(p.linhas[0]).toMatchObject({ qtdReservada: 4, qtdPendente: 0, acimaDoEstoque: false });
+    expect(p).toMatchObject({ acimaDoEstoque: false, cienteAcimaEstoque: false });
     expect(base.pedidos.length).toBe(e.pedidos.length - 1); // entrada intacta
   });
 
-  it("recusa inteiro se uma linha passa do disponível", () => {
-    expect(() =>
-      criarPedido(base, dados, [
-        { brindeId: "caneca", qtd: 1 },
-        { brindeId: "mochila", qtd: 12 },
-      ]),
-    ).toThrow(/disponíveis/);
+  it("quantidade igual ao disponível cabe inteira, sem pendente e sem ciência", () => {
+    const e = criarPedido(base, dados, [{ brindeId: "caderno-espiral-35", qtd: 25 }], false);
+    expect(e.pedidos.at(-1)!.linhas[0]).toMatchObject({ qtdReservada: 25, qtdPendente: 0, acimaDoEstoque: false });
+    expect(disponivel(brinde(e, "caderno-espiral-35"))).toBe(0);
   });
 
-  it("duas linhas do mesmo brinde somam contra o disponível", () => {
-    expect(() =>
-      criarPedido(base, dados, [
-        { brindeId: "mochila", qtd: 6 },
-        { brindeId: "mochila", qtd: 6 },
-      ]),
-    ).toThrow(/só há 11 disponíveis/);
+  it("acima do disponível é aceito com ciência: reserva o que há e guarda o resto como pendente", () => {
+    const e = criarPedido(base, dados, [{ brindeId: "caderno-espiral-35", qtd: 26 }], true);
+    const p = e.pedidos.at(-1)!;
+    expect(p.linhas[0]).toMatchObject({ qtd: 26, qtdReservada: 25, qtdPendente: 1, acimaDoEstoque: true });
+    expect(p).toMatchObject({ acimaDoEstoque: true, cienteAcimaEstoque: true });
+    expect(brinde(e, "caderno-espiral-35").reserva).toBe(70); // saldo 70: reserva no teto, nunca acima
+    expect(brinde(e, "caderno-espiral-35").saldo).toBeGreaterThanOrEqual(brinde(e, "caderno-espiral-35").reserva);
   });
 
-  it("não reserva linha personalizável e aceita qualquer inteiro a partir de 1", () => {
+  it("acima do disponível sem ciência lança a mensagem e não altera nada", () => {
+    expect(() => criarPedido(base, dados, [{ brindeId: "caderno-espiral-35", qtd: 26 }], false)).toThrow(MSG_CIENCIA_OBRIGATORIA);
+    expect(MSG_CIENCIA_OBRIGATORIA).toBe("Marque a ciência de que o prazo será maior para enviar este pedido.");
+    expect(base.pedidos).toHaveLength(ESTADO_INICIAL.pedidos.length);
+    expect(brinde(base, "caderno-espiral-35").reserva).toBe(45);
+  });
+
+  it("brinde com disponível zero é aceito com tudo pendente", () => {
+    const e = criarPedido(base, dados, [{ brindeId: "caneta-azul-touch", qtd: 10 }], true);
+    expect(e.pedidos.at(-1)!.linhas[0]).toMatchObject({ qtdReservada: 0, qtdPendente: 10, acimaDoEstoque: true });
+    expect(brinde(e, "caneta-azul-touch").reserva).toBe(0);
+  });
+
+  it("duas linhas do mesmo brinde somam na ordem: a segunda pega o que sobrou", () => {
+    const e = criarPedido(
+      base,
+      dados,
+      [
+        { brindeId: "caderno-espiral-35", qtd: 20 },
+        { brindeId: "caderno-espiral-35", qtd: 20 },
+      ],
+      true,
+    );
+    const [a, b] = e.pedidos.at(-1)!.linhas;
+    expect(a).toMatchObject({ qtdReservada: 20, qtdPendente: 0, acimaDoEstoque: false });
+    expect(b).toMatchObject({ qtdReservada: 5, qtdPendente: 15, acimaDoEstoque: true });
+    expect(brinde(e, "caderno-espiral-35").reserva).toBe(70);
+  });
+
+  it("não reserva linha personalizável, não pede ciência e aceita qualquer inteiro a partir de 1", () => {
     for (const qtd of [1, 49]) {
-      const e = criarPedido(base, dados, [{ brindeId: "ecobag", qtd }]);
-      expect(brinde(e, "ecobag").reserva).toBe(0);
+      const e = criarPedido(base, dados, [{ brindeId: "kit-churrasco", qtd }], false);
+      expect(brinde(e, "kit-churrasco").reserva).toBe(0);
+      expect(e.pedidos.at(-1)!.linhas[0]).toMatchObject({ qtdReservada: 0, qtdPendente: 0, acimaDoEstoque: false });
     }
   });
 
+  it("quantidade inválida ainda é recusada", () => {
+    expect(() => criarPedido(base, dados, [{ brindeId: "caderno-bambu", qtd: 0 }], true)).toThrow(/quantidade inteira/);
+  });
+
   it("finalidade é obrigatória", () => {
-    expect(() => criarPedido(base, { ...dados, finalidade: "  " }, [{ brindeId: "caneca", qtd: 1 }])).toThrow(/finalidade/);
+    expect(() => criarPedido(base, { ...dados, finalidade: "  " }, [{ brindeId: "caderno-bambu", qtd: 1 }], false)).toThrow(/finalidade/);
+  });
+});
+
+describe("linhasAcimaDoEstoque e pedidosQuePodemReceberReserva", () => {
+  it("avalia contra o disponível de agora, somando linhas do mesmo brinde na ordem", () => {
+    const itens = [
+      { brindeId: "caderno-espiral-35", qtd: 20 },
+      { brindeId: "caderno-bambu", qtd: 5 },
+      { brindeId: "caderno-espiral-35", qtd: 20 },
+      { brindeId: "kit-churrasco", qtd: 999 },
+      { brindeId: "caneta-azul-touch", qtd: 1 },
+    ];
+    expect(linhasAcimaDoEstoque(base.brindes, itens)).toEqual([2, 4]);
+  });
+
+  it("destaca pedidos com pendente só quando há disponível do brinde", () => {
+    expect(pedidosQuePodemReceberReserva(base).map((p) => p.id)).toEqual(["P-2006"]); // espiral tem 25 disponíveis; a caneta tem 0
+    const com = registrarEntrada(base, "caneta-azul-touch", 200, "g1");
+    expect(pedidosQuePodemReceberReserva(com).map((p) => p.id).sort()).toEqual(["P-2006", "P-2007"]);
+  });
+});
+
+describe("reservarReposicao", () => {
+  it("reserva min(pendente, disponível) e registra a operação no histórico", () => {
+    // espiral tem 25 disponíveis e o P-2006 tem 20 pendentes: reserva os 20
+    const e = reservarReposicao(base, "P-2006", 0, "g1");
+    const p = e.pedidos.find((x) => x.id === "P-2006")!;
+    expect(p.linhas[0]).toMatchObject({ qtdReservada: 50, qtdPendente: 0, acimaDoEstoque: false });
+    expect(p.acimaDoEstoque).toBe(false);
+    expect(brinde(e, "caderno-espiral-35").reserva).toBe(65);
+    const ev = p.historico.at(-1)!;
+    expect(ev).toMatchObject({ tipo: "reposicao", quem: "g1", em: base.agora, estado: "em_alinhamento" });
+    expect(ev.nota).toBe("Reservado 20 un. de Caderno espiral 35 anos; pendente restante 0");
+  });
+
+  it("reserva só o que há quando o disponível é menor que o pendente", () => {
+    const entrada = registrarEntrada(base, "caneta-azul-touch", 40, "g1");
+    const e = reservarReposicao(entrada, "P-2007", 0, "g2");
+    const l = e.pedidos.find((x) => x.id === "P-2007")!.linhas[0];
+    expect(l).toMatchObject({ qtdReservada: 40, qtdPendente: 110, acimaDoEstoque: true });
+    expect(e.pedidos.find((x) => x.id === "P-2007")!.acimaDoEstoque).toBe(true);
+    expect(brinde(e, "caneta-azul-touch")).toMatchObject({ saldo: 40, reserva: 40 });
+  });
+
+  it("sem disponível lança a mensagem e o estado não muda", () => {
+    expect(() => reservarReposicao(base, "P-2007", 0, "g1")).toThrow("Não há estoque disponível para reservar.");
+    expect(base.pedidos.find((x) => x.id === "P-2007")!.linhas[0].qtdPendente).toBe(150);
+  });
+
+  it("só vale em Recebido e Em preparação e em linha com pendente", () => {
+    const pronto = mudarEstado(mudarEstado(criarPedido(base, dados, [{ brindeId: "caderno-bambu", qtd: 1 }], false), "P-1001", "em_alinhamento", "g1"), "P-1001", "pronto", "g1");
+    expect(() => reservarReposicao(pronto, "P-1001", 0, "g1")).toThrow(/Recebido/);
+    expect(() => reservarReposicao(base, "P-2008", 0, "g1")).toThrow(/pendente/);
+  });
+});
+
+describe("pronto, recusar e cancelar com pendente", () => {
+  it("pronto é bloqueado enquanto houver pendente, citando Em preparação, e libera depois de reservar", () => {
+    const pend = base.pedidos.find((x) => x.id === "P-2006")!.linhas.reduce((s, l) => s + l.qtdPendente, 0);
+    expect(pend).toBeGreaterThan(1);
+    expect(() => mudarEstado(base, "P-2006", "pronto", "g1")).toThrow(
+      `Não é possível passar o pedido para "Pronto para retirada" com ${pend} unidades pendentes. Reserve o que chegou enquanto o pedido estiver em "Em preparação".`,
+    );
+    const e = mudarEstado(reservarReposicao(base, "P-2006", 0, "g1"), "P-2006", "pronto", "g1");
+    expect(e.pedidos.find((x) => x.id === "P-2006")!.linhas[0].qtdReservada).toBe(50);
+  });
+
+  it("recusar libera só o reservado e descarta o pendente", () => {
+    const e = mudarEstado(base, "P-2006", "recusada", "g1", "Sem verba");
+    const l = e.pedidos.find((x) => x.id === "P-2006")!.linhas[0];
+    expect(l).toMatchObject({ qtdReservada: 0, qtdPendente: 0, acimaDoEstoque: false });
+    expect(e.pedidos.find((x) => x.id === "P-2006")!.acimaDoEstoque).toBe(false);
+    expect(brinde(e, "caderno-espiral-35")).toMatchObject({ saldo: 70, reserva: 15 }); // só os 30 reservados voltaram
+  });
+
+  it("cancelar um pedido sem nada reservado não mexe na reserva", () => {
+    const e = mudarEstado(base, "P-2007", "cancelada", "g1", "Evento adiado");
+    expect(brinde(e, "caneta-azul-touch")).toMatchObject({ saldo: 0, reserva: 0 });
+    expect(e.pedidos.find((x) => x.id === "P-2007")!.linhas[0].qtdPendente).toBe(0);
+  });
+
+  it("encerrar baixa a quantidade reservada de cada linha", () => {
+    const e = mudarEstado(base, "P-2004", "encerrada", "g1");
+    expect(brinde(e, "caderneta-35")).toMatchObject({ saldo: 60, reserva: 0 });
+    expect(e.movimentacoes.find((m) => m.pedidoId === "P-2004")).toMatchObject({ tipo: "saida", qtd: 25 });
+  });
+});
+
+describe("ajustarQuantidadeLinha com pendente", () => {
+  it("a redução abate primeiro o pendente e só depois o reservado", () => {
+    let e = ajustarQuantidadeLinha(base, "P-2006", 0, 40, "g1", "Cortar 10");
+    expect(e.pedidos.find((x) => x.id === "P-2006")!.linhas[0]).toMatchObject({ qtd: 40, qtdReservada: 30, qtdPendente: 10, acimaDoEstoque: true });
+    expect(brinde(e, "caderno-espiral-35").reserva).toBe(45);
+    e = ajustarQuantidadeLinha(e, "P-2006", 0, 25, "g1", "Cortar mais 15");
+    expect(e.pedidos.find((x) => x.id === "P-2006")!.linhas[0]).toMatchObject({ qtd: 25, qtdReservada: 25, qtdPendente: 0, acimaDoEstoque: false });
+    expect(e.pedidos.find((x) => x.id === "P-2006")!.acimaDoEstoque).toBe(false);
+    expect(brinde(e, "caderno-espiral-35").reserva).toBe(40); // 5 reservados liberados
+  });
+
+  it("o aumento reserva o possível e soma o resto ao pendente", () => {
+    const e = ajustarQuantidadeLinha(base, "P-2008", 0, 40, "g1", "Mais cadernos"); // bambu: tinha 10, disponível 102
+    expect(e.pedidos.find((x) => x.id === "P-2008")!.linhas[0]).toMatchObject({ qtd: 40, qtdReservada: 40, qtdPendente: 0 });
+    const f = ajustarQuantidadeLinha(base, "P-2009", 0, 45, "g1", "Mais cadernos"); // espiral: tinha 15, disponível 25, pede +30
+    expect(f.pedidos.find((x) => x.id === "P-2009")!.linhas[0]).toMatchObject({ qtd: 45, qtdReservada: 40, qtdPendente: 5, acimaDoEstoque: true });
+    expect(f.pedidos.find((x) => x.id === "P-2009")!.acimaDoEstoque).toBe(true);
+    expect(brinde(f, "caderno-espiral-35").reserva).toBe(70);
+  });
+
+  it("recusa nota vazia, quantidade não inteira e redução que zera a linha", () => {
+    expect(() => ajustarQuantidadeLinha(base, "P-2006", 0, 40, "g1", " ")).toThrow(/nota/);
+    expect(() => ajustarQuantidadeLinha(base, "P-2006", 0, 1.5, "g1", "x")).toThrow(/inteira/);
+    expect(() => ajustarQuantidadeLinha(base, "P-2006", 0, 0, "g1", "x")).toThrow(/inteira/);
+  });
+});
+
+describe("métricas de pedidos acima do estoque (só gestão)", () => {
+  it("conta pedidos abertos acima do estoque e as unidades pendentes", () => {
+    const m = metricasDoPeriodo(base, "2026-11");
+    expect(m.pedidosAcimaDoEstoque).toBe(2); // P-2006 e P-2007
+    expect(m.unidadesPendentes).toBe(170); // 20 + 150
+    const sem = metricasDoPeriodo(reservarReposicao(base, "P-2006", 0, "g1"), "2026-11");
+    expect(sem).toMatchObject({ pedidosAcimaDoEstoque: 1, unidadesPendentes: 150 });
   });
 });
 
@@ -129,15 +339,15 @@ describe("data desejada opcional com mínimo", () => {
   });
 
   it("prazo extra da personalização soma aos dias úteis", () => {
-    expect(dataMinima(5, HOJE)).toBe("2026-11-20");
+    expect(dataMinima(7, HOJE)).toBe("2026-11-24");
     expect(() =>
-      criarPedido(base, { ...dados, dataDesejada: "2026-11-13" }, [{ brindeId: "ecobag", qtd: 60 }]),
-    ).toThrow(/a partir de 20\/11/);
+      criarPedido(base, { ...dados, dataDesejada: "2026-11-13" }, [{ brindeId: "kit-churrasco", qtd: 60 }], false),
+    ).toThrow(/a partir de 24\/11/);
   });
 });
 
 describe("fluxo de estados", () => {
-  const comPedido = criarPedido(base, dados, [{ brindeId: "caneca", qtd: 4 }]);
+  const comPedido = criarPedido(base, dados, [{ brindeId: "caderno-bambu", qtd: 4 }], false);
   const id = comPedido.pedidos[comPedido.pedidos.length - 1].id;
 
   it("recusa transição fora do fluxo", () => {
@@ -147,24 +357,24 @@ describe("fluxo de estados", () => {
   it("recusada e cancelada pedem motivo e liberam a reserva", () => {
     expect(() => mudarEstado(comPedido, id, "recusada", "g1", " ")).toThrow(/motivo/i);
     const e = mudarEstado(comPedido, id, "recusada", "g1", "Sem verba");
-    expect(brinde(e, "caneca").reserva).toBe(brinde(base, "caneca").reserva);
-    expect(brinde(e, "caneca").saldo).toBe(brinde(base, "caneca").saldo);
+    expect(brinde(e, "caderno-bambu").reserva).toBe(brinde(base, "caderno-bambu").reserva);
+    expect(brinde(e, "caderno-bambu").saldo).toBe(brinde(base, "caderno-bambu").saldo);
   });
 
   it("encerrar baixa o saldo, libera a reserva e registra a saída", () => {
     let e = mudarEstado(comPedido, id, "em_alinhamento", "g1");
     e = mudarEstado(e, id, "pronto", "g1");
     e = mudarEstado(e, id, "encerrada", "g1");
-    expect(brinde(e, "caneca").saldo).toBe(brinde(base, "caneca").saldo - 4);
-    expect(brinde(e, "caneca").reserva).toBe(brinde(base, "caneca").reserva);
+    expect(brinde(e, "caderno-bambu").saldo).toBe(brinde(base, "caderno-bambu").saldo - 4);
+    expect(brinde(e, "caderno-bambu").reserva).toBe(brinde(base, "caderno-bambu").reserva);
     const saida = e.movimentacoes.find((m) => m.pedidoId === id);
-    expect(saida).toMatchObject({ tipo: "saida", qtd: 4, brindeId: "caneca" });
-    expect(historicoBrinde(e, "caneca").fecha).toBe(true);
+    expect(saida).toMatchObject({ tipo: "saida", qtd: 4, brindeId: "caderno-bambu" });
+    expect(historicoBrinde(e, "caderno-bambu").fecha).toBe(true);
   });
 });
 
 describe("orçamento da linha personalizável", () => {
-  const ini = criarPedido(base, dados, [{ brindeId: "chaveiro", qtd: 30 }]);
+  const ini = criarPedido(base, dados, [{ brindeId: "kit-churrasco", qtd: 30 }], false);
   const id = ini.pedidos[ini.pedidos.length - 1].id;
   const alinhado = mudarEstado(ini, id, "em_alinhamento", "g1");
 
@@ -184,18 +394,19 @@ describe("orçamento da linha personalizável", () => {
 
 describe("estoque: entrada e ajuste", () => {
   it("entrada soma ao saldo e ajuste exige nota e respeita a reserva", () => {
-    const e = registrarEntrada(base, "caderno", 10, "g1");
-    expect(brinde(e, "caderno").saldo).toBe(brinde(base, "caderno").saldo + 10);
-    expect(() => registrarAjuste(base, "caderno", -1, "g1", " ")).toThrow(/motivo/);
-    expect(() => registrarAjuste(base, "bloco-adesivo", -1, "g1", "Perda")).toThrow(/reservado/);
-    expect(historicoBrinde(registrarAjuste(e, "caderno", -2, "g1", "Contagem"), "caderno").fecha).toBe(true);
+    const e = registrarEntrada(base, "caderno-bambu", 10, "g1");
+    expect(brinde(e, "caderno-bambu").saldo).toBe(brinde(base, "caderno-bambu").saldo + 10);
+    expect(() => registrarAjuste(base, "caderno-bambu", -1, "g1", " ")).toThrow(/motivo/);
+    // caderno espiral: saldo 70, reserva 45; tirar 26 deixaria o saldo em 44, abaixo do reservado
+    expect(() => registrarAjuste(base, "caderno-espiral-35", -26, "g1", "Perda")).toThrow(/reservado/);
+    expect(historicoBrinde(registrarAjuste(e, "caderno-bambu", -2, "g1", "Contagem"), "caderno-bambu").fecha).toBe(true);
   });
 });
 
 describe("métricas e urgência", () => {
   it("mês calculado soma por solicitante e por área igual ao total", () => {
     const m = metricasDoPeriodo(base, "2026-10");
-    expect(m.gasto).toBeCloseTo(3082, 2);
+    expect(m.gasto).toBeCloseTo(60 * 22.5, 2); // P-2010: 60 cadernetas Digisystem
     expect(m.porSolicitante.reduce((s, x) => s + x.valor, 0)).toBeCloseTo(m.gasto, 2);
     expect(m.porArea.reduce((s, x) => s + x.valor, 0)).toBeCloseTo(m.gasto, 2);
     expect(m.gastoMesAnterior).toBe(2840); // setembro fechado, total mock
@@ -203,11 +414,12 @@ describe("métricas e urgência", () => {
 
   it("novembro compara com outubro calculado; prontos e a avaliar", () => {
     const m = metricasDoPeriodo(base, "2026-11");
-    expect(m.gasto).toBeCloseTo(1901.5, 2);
-    expect(m.gastoMesAnterior).toBeCloseTo(3082, 2);
-    expect(m.prontosUnidades).toBe(10 + 40 + 6);
-    expect(m.custoProntosAguardando).toBeCloseTo(10 * 21.5 + 40 * 7.9 + 6 * 118, 2);
-    expect(m.linhasAAvaliar).toBe(2); // ecobag sem aceite e camiseta sem orçamento
+    expect(m.gasto).toBeCloseTo(300 * 6.4, 2); // P-2001: 300 canetas retiradas em 03/11
+    expect(m.gastoMesAnterior).toBeCloseTo(60 * 22.5, 2);
+    expect(m.unidadesRetiradas).toBe(300);
+    expect(m.prontosUnidades).toBe(25); // P-2004
+    expect(m.custoProntosAguardando).toBeCloseTo(25 * 19.9, 2);
+    expect(m.linhasAAvaliar).toBe(0); // o orçamento do kit churrasco (P-2005) já foi aceito
   });
 
   it("mês fechado usa o total mock", () => {
@@ -218,7 +430,10 @@ describe("métricas e urgência", () => {
 
   it("popularidade ignora recusados e cancelados", () => {
     const pop = popularidade(base);
-    expect(pop.find((p) => p.brindeId === "mochila")!.unidades).toBe(5 + 6);
+    // P-2010 (60) e P-2009 (40); o P-2003 cancelado (20) não conta
+    expect(pop.find((p) => p.brindeId === "caderneta-digisystem")!.unidades).toBe(60 + 40);
+    // P-2008 (12); o P-2002 recusado (10) não conta
+    expect(pop.find((p) => p.brindeId === "copo-termico")!.unidades).toBe(12);
   });
 
   it("urgência é calculada a partir de hoje", () => {
@@ -230,19 +445,22 @@ describe("métricas e urgência", () => {
   });
 
   it("validarLinha aceita no Personalizável todo inteiro a partir de 1", () => {
-    const camiseta = brinde(base, "camiseta");
+    const kit = brinde(base, "kit-churrasco");
     for (const q of [0, -1, 1.5]) {
-      const r = validarLinha(camiseta, q);
+      const r = validarLinha(kit, q);
       expect(r.ok).toBe(false);
       expect(r.erros).toContain("Informe uma quantidade inteira, a partir de 1.");
     }
-    expect(validarLinha(camiseta, 1).ok).toBe(true);
+    expect(validarLinha(kit, 1).ok).toBe(true);
   });
 
-  it("validarLinha no estoque recusa acima do disponível e brinde esgotado", () => {
-    expect(validarLinha(brinde(base, "mochila"), 12).erros).toContain("Só há 11 disponíveis.");
-    expect(validarLinha(brinde(base, "bloco-adesivo"), 1).erros).toContain("Indisponível no momento.");
-    expect(validarLinha(brinde(base, "mochila"), 11).ok).toBe(true);
+  it("validarLinha no estoque aceita acima do disponível e brinde esgotado, só sinalizando acimaDoEstoque", () => {
+    expect(validarLinha(brinde(base, "caderno-espiral-35"), 26)).toEqual({ ok: true, erros: [], acimaDoEstoque: true });
+    expect(validarLinha(brinde(base, "caneta-azul-touch"), 1)).toEqual({ ok: true, erros: [], acimaDoEstoque: true });
+    expect(validarLinha(brinde(base, "caderno-espiral-35"), 25)).toEqual({ ok: true, erros: [], acimaDoEstoque: false });
+    expect(validarLinha(brinde(base, "kit-churrasco"), 5000).acimaDoEstoque).toBe(false);
+    const invalida = validarLinha(brinde(base, "caderno-espiral-35"), 0);
+    expect(invalida).toMatchObject({ ok: false, acimaDoEstoque: false });
   });
 });
 
@@ -251,7 +469,7 @@ import { alternarAtivo, salvarBrinde } from "./regras";
 
 describe("cadastro de brinde", () => {
   const novo = {
-    id: "", slug: "", nome: "Boné bordado", tipo: "estoque" as const, categoria: "Vestuário", foto: "/brindes/camiseta.png",
+    id: "", slug: "", nome: "Boné bordado", tipo: "estoque" as const, categoria: "Vestuário", foto: "/brindes/copo-termico.jpg",
     descricao: "Boné com logo.", custoUnitario: 25, novidade: true, ativo: true,
     minimo: 5, saldoInicial: 12,
   };
@@ -275,14 +493,14 @@ describe("cadastro de brinde", () => {
   });
 
   it("edita preservando saldo e reserva, atualiza o mínimo e recusa mudar o tipo", () => {
-    const caneca = brinde(base, "caneca");
-    const e = salvarBrinde(base, { ...caneca, nome: "Caneca nova", minimo: 70, saldoInicial: 999 });
-    expect(brinde(e, "caneca").nome).toBe("Caneca nova");
-    expect(brinde(e, "caneca").minimo).toBe(70);
-    expect(brinde(e, "caneca").saldo).toBe(caneca.saldo);
-    expect(brinde(e, "caneca").reserva).toBe(caneca.reserva);
+    const bambu = brinde(base, "caderno-bambu");
+    const e = salvarBrinde(base, { ...bambu, nome: "Caderno de bambu novo", minimo: 70, saldoInicial: 999 });
+    expect(brinde(e, "caderno-bambu").nome).toBe("Caderno de bambu novo");
+    expect(brinde(e, "caderno-bambu").minimo).toBe(70);
+    expect(brinde(e, "caderno-bambu").saldo).toBe(bambu.saldo);
+    expect(brinde(e, "caderno-bambu").reserva).toBe(bambu.reserva);
     expect(e.movimentacoes).toHaveLength(base.movimentacoes.length);
-    expect(() => salvarBrinde(base, { ...caneca, tipo: "personalizavel", custoUnitario: null, prazoExtraDiasUteis: 5 })).toThrow(/tipo/);
+    expect(() => salvarBrinde(base, { ...bambu, tipo: "personalizavel", custoUnitario: null, prazoExtraDiasUteis: 5 })).toThrow(/tipo/);
   });
 
   it("valida campos obrigatórios, saldo inicial e mínimo", () => {
@@ -301,10 +519,10 @@ describe("cadastro de brinde", () => {
   });
 
   it("alternarAtivo liga e desliga sem mutar a entrada", () => {
-    const off = alternarAtivo(base, "caneca");
-    expect(brinde(off, "caneca").ativo).toBe(false);
-    expect(brinde(base, "caneca").ativo).toBe(true);
-    expect(brinde(alternarAtivo(off, "caneca"), "caneca").ativo).toBe(true);
+    const off = alternarAtivo(base, "caderno-bambu");
+    expect(brinde(off, "caderno-bambu").ativo).toBe(false);
+    expect(brinde(base, "caderno-bambu").ativo).toBe(true);
+    expect(brinde(alternarAtivo(off, "caderno-bambu"), "caderno-bambu").ativo).toBe(true);
   });
 });
 
@@ -342,14 +560,14 @@ describe("preço visível ao diretor", () => {
 
   it("o total do carrinho e o valor do pedido criado vêm da mesma conta", () => {
     const carrinho = [
-      { brindeId: "caneca", qtd: 4 },
-      { brindeId: "ecobag", qtd: 20 },
+      { brindeId: "caderno-bambu", qtd: 4 },
+      { brindeId: "kit-churrasco", qtd: 20 },
     ];
     const c = totalDoCarrinho(base.brindes, carrinho);
-    const criado = criarPedido(base, dados, carrinho);
+    const criado = criarPedido(base, dados, carrinho, false);
     expect(valorDoPedido(criado.pedidos[criado.pedidos.length - 1])).toEqual({ valor: c.total, aAvaliar: c.aAvaliar });
     expect(c.aAvaliar).toBe(1);
-    const b = base.brindes.find((x) => x.id === "caneca")!;
+    const b = base.brindes.find((x) => x.id === "caderno-bambu")!;
     expect(precoDaLinhaDoCarrinho(b, 4).custoUnitarioNaHora).toBe(b.custoUnitario);
   });
 });
@@ -394,7 +612,7 @@ describe("rótulos dos estados do pedido", () => {
       recusada: "Recusado",
       cancelada: "Cancelado",
     });
-    const ini = criarPedido(base, dados, [{ brindeId: "caneca", qtd: 1 }]);
+    const ini = criarPedido(base, dados, [{ brindeId: "caderno-bambu", qtd: 1 }], false);
     const id = ini.pedidos[ini.pedidos.length - 1].id;
     expect(() => informarOrcamento(ini, id, 0, 10, "g1")).toThrow(/em "Em preparação"/);
   });
@@ -413,9 +631,12 @@ describe("contadores e filtros da vitrine", () => {
     expect(filtrarBrindes(base.brindes, CATEGORIA_TODOS, "", "az")).toHaveLength(cont[0].total);
     const primeira = cont[1];
     expect(filtrarBrindes(base.brindes, primeira.categoria, "", "novos")).toHaveLength(primeira.total);
-    const caneca = filtrarBrindes(base.brindes, CATEGORIA_TODOS, "CANECA", "az");
-    expect(caneca.length).toBeGreaterThan(0);
-    expect(caneca.every((b) => b.nome.toLowerCase().includes("caneca"))).toBe(true);
+    const bambu = filtrarBrindes(base.brindes, CATEGORIA_TODOS, "BAMBU", "az");
+    expect(bambu.length).toBeGreaterThan(0);
+    expect(bambu.every((b) => b.nome.toLowerCase().includes("bambu"))).toBe(true);
+    expect(Object.fromEntries(cont.map((c) => [c.categoria, c.total]))).toEqual({
+      [CATEGORIA_TODOS]: 7, "Casa e lazer": 1, "Escritório": 5, "Bem-estar": 1,
+    });
     expect(filtrarBrindes(base.brindes, CATEGORIA_TODOS, "zzzz-inexistente", "az")).toEqual([]);
   });
 });

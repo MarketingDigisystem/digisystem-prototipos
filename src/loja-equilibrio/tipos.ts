@@ -22,6 +22,8 @@ export interface Brinde {
   tipo: TipoBrinde;
   categoria: string;
   foto: string;
+  /** Segunda foto, mostrada só na galeria da página do brinde. */
+  fotoExtra?: string;
   descricao: string;
   /** null no Personalizável: o valor sai do orçamento. */
   custoUnitario: number | null;
@@ -45,12 +47,20 @@ export interface Evento {
   em: string;
   motivo?: string;
   nota?: string;
+  /** "reposicao" marca a reserva do que chegou (só gestão); sem `tipo` é uma transição de estado comum. */
+  tipo?: "reposicao";
 }
 
 export interface LinhaPedido {
   brindeId: string;
   qtd: number;
   tipo: TipoBrinde;
+  /** Quantidade com reserva garantida (estoque). Sempre 0 no Personalizável. qtdReservada + qtdPendente = qtd enquanto o pedido está ativo. */
+  qtdReservada: number;
+  /** Quantidade que aguarda reposição de estoque. Sempre 0 no Personalizável. */
+  qtdPendente: number;
+  /** Verdadeiro enquanto qtdPendente > 0. */
+  acimaDoEstoque: boolean;
   /** Gravado na criação. null no Personalizável. */
   custoUnitarioNaHora: number | null;
   personalizacao?: { texto?: string; arte?: string };
@@ -72,6 +82,10 @@ export interface Pedido {
   linhas: LinhaPedido[];
   estado: EstadoPedido;
   historico: Evento[];
+  /** Alguma linha tem quantidade pendente. */
+  acimaDoEstoque: boolean;
+  /** O diretor marcou a ciência de que o prazo será maior ao enviar. */
+  cienteAcimaEstoque: boolean;
 }
 
 export type EstadoSugestao = "sugerida" | "em_analise" | "aprovada" | "recusada";
@@ -155,6 +169,10 @@ export interface Metricas {
   /** Custo dos prontos aguardando retirada (nada é debitado nesta fase). */
   custoProntosAguardando: number;
   linhasAAvaliar: number;
+  /** Só gestão: pedidos em Recebido ou Em preparação com quantidade pendente. */
+  pedidosAcimaDoEstoque: number;
+  /** Só gestão: soma da quantidade pendente desses pedidos. */
+  unidadesPendentes: number;
   porSolicitante: LinhaGasto[];
   porArea: LinhaGasto[];
   pedidosEncerrados: string[];

@@ -7,12 +7,14 @@
 // A gestão PODE ver saldo, reserva e mínimo (o diretor não). Entrada e ajuste abrem num diálogo fixo, sem mover a tabela.
 
 import { useMemo, useState } from "react";
-import { alertasMinimo, disponivel, esgotados, valorEmEstoque } from "../../regras";
+import { alertasMinimo, disponivel, esgotados, pedidosQuePodemReceberReserva, valorEmEstoque } from "../../regras";
 import { SAIDA_DIALOGO_MS, estiloEntrada } from "../../movimento";
+import { href } from "../../rota";
 import { useLoja } from "../../store";
 import type { Brinde } from "../../tipos";
 import { useSaidaAnimada } from "../../ui";
 import { BTN_PRIMARIO, BTN_SECUNDARIO, CAMPO, Campo, Dialogo, ErroInline, PILL, PILL_ATIVO, PILL_INATIVO, brl } from "./comum";
+import { textoPodemReceberReserva } from "./reposicao";
 
 interface Alvo {
   b: Brinde;
@@ -29,7 +31,16 @@ function Kpi({ rotulo, valor, destaque }: { rotulo: string; valor: string; desta
   );
 }
 
-function DialogoMovimento({ alvo, onFechar: aoFechar }: { alvo: Alvo | null; onFechar: () => void }) {
+function DialogoMovimento({
+  alvo,
+  onFechar: aoFechar,
+  onEntrada,
+}: {
+  alvo: Alvo | null;
+  onFechar: () => void;
+  /** Avisa a tela que uma entrada foi registrada (nome do brinde e quantidade), para destacar os pedidos que podem receber reserva. */
+  onEntrada: (nomeDoBrinde: string, qtd: number) => void;
+}) {
   const loja = useLoja();
   // Fechar passa pela saída animada (~140 ms): o diálogo só desmonta depois dela.
   const { saindo, fechar: onFechar } = useSaidaAnimada(aoFechar, SAIDA_DIALOGO_MS);
@@ -49,8 +60,10 @@ function DialogoMovimento({ alvo, onFechar: aoFechar }: { alvo: Alvo | null; onF
       modo === "entrada"
         ? loja.registrarEntrada(alvo.b.id, n, nota)
         : loja.registrarAjuste(alvo.b.id, n, nota);
-    if (r.ok) onFechar();
-    else setErro(r.motivo);
+    if (r.ok) {
+      if (modo === "entrada") onEntrada(alvo.b.nome, n);
+      onFechar();
+    } else setErro(r.motivo);
   };
 
   return (
@@ -116,6 +129,8 @@ export function Estoque() {
   const loja = useLoja();
   const { dados } = loja;
   const [alvo, setAlvo] = useState<Alvo | null>(null);
+  const [entradaRecente, setEntradaRecente] = useState<{ nome: string; qtd: number } | null>(null);
+  const podemReceber = useMemo(() => pedidosQuePodemReceberReserva(dados).length, [dados]);
 
   const linhas = useMemo(
     () =>
@@ -145,7 +160,24 @@ export function Estoque() {
         </div>
       </div>
 
-      <div className="mt-5 overflow-hidden rounded-3xl border bg-card shadow-card">
+      {/* Faixa de altura reservada: o aviso pós-entrada aparece sem empurrar a tabela nem os botões Entrada/Ajuste. */}
+      <div className="mt-4 min-h-[9.5rem] sm:min-h-24 lg:min-h-[4.5rem]" role="status" aria-live="polite">
+        {entradaRecente && (
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-2xl border border-transparent bg-warning-soft px-4 py-2 ring-1 ring-warning">
+            <p className="text-sm font-semibold text-foreground">
+              Entrada de {entradaRecente.qtd} un. de {entradaRecente.nome} registrada.{" "}
+              {podemReceber > 0 ? textoPodemReceberReserva(podemReceber) + "." : "Nenhum pedido aguarda reserva agora."}
+            </p>
+            {podemReceber > 0 && (
+              <a href={href("gestao/fila", { filtro: "acima" })} className={BTN_SECUNDARIO}>
+                Ver na Fila
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="overflow-hidden rounded-3xl border bg-card shadow-card">
         <div
           className="hidden items-center gap-3 border-b bg-secondary/60 px-4 py-2 text-xs font-semibold text-muted-foreground lg:grid lg:grid-cols-[minmax(0,2fr)_repeat(4,72px)_130px_190px]"
           aria-hidden
@@ -214,7 +246,12 @@ export function Estoque() {
       <p className="mt-3 text-xs text-muted-foreground">Brindes personalizáveis não têm saldo próprio: o valor sai do orçamento de cada pedido.</p>
 
       {/* key: cada abertura começa com os campos limpos e o tipo escolhido na linha. */}
-      <DialogoMovimento key={alvo ? `${alvo.b.id}/${alvo.modo}` : "fechado"} alvo={alvo} onFechar={() => setAlvo(null)} />
+      <DialogoMovimento
+        key={alvo ? `${alvo.b.id}/${alvo.modo}` : "fechado"}
+        alvo={alvo}
+        onFechar={() => setAlvo(null)}
+        onEntrada={(nome, qtd) => setEntradaRecente({ nome, qtd })}
+      />
     </section>
   );
 }

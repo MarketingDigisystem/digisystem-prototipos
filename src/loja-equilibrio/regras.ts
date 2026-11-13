@@ -23,6 +23,7 @@ import type {
   ValorPedido,
 } from "./tipos";
 import { ROTULO_ESTADO } from "./formato";
+import { MSG_CIENCIA_OBRIGATORIA } from "./avisos";
 
 /* ------------------------------------------------------------------ */
 /* Constantes                                                          */
@@ -108,10 +109,15 @@ export function ultimasUnidades(disp: number): boolean {
   return disp > 0 && disp <= LIMITE_ULTIMAS_UNIDADES;
 }
 
-export function selos(b: Brinde): { novidade: boolean; ultimasUnidades: boolean; indisponivel: boolean } {
+/** Selos que o diretor vê: só a novidade. Nunca expõe estoque (Req. 14.1 e 14.2). */
+export function selosDoDiretor(b: Brinde): { novidade: boolean } {
+  return { novidade: b.novidade };
+}
+
+/** Selos de estoque: só para telas da gestão (`telas/gestao/**`). */
+export function selosDeEstoque(b: Brinde): { ultimasUnidades: boolean; indisponivel: boolean } {
   const disp = disponivel(b);
   return {
-    novidade: b.novidade,
     ultimasUnidades: b.tipo === "estoque" && ultimasUnidades(disp),
     indisponivel: b.tipo === "estoque" && disp <= 0,
   };
@@ -121,24 +127,52 @@ export function selos(b: Brinde): { novidade: boolean; ultimasUnidades: boolean;
 /* Validações                                                          */
 /* ------------------------------------------------------------------ */
 
-type Validacao = { ok: boolean; erros: string[] };
+type Validacao = { ok: boolean; erros: string[]; acimaDoEstoque: boolean };
 
 function inteiroPositivo(n: number): boolean {
   return Number.isInteger(n) && n >= 1;
 }
 
+/**
+ * Erro só para brinde inativo ou quantidade inválida. A quantidade acima do disponível NÃO é erro:
+ * vira `acimaDoEstoque` (Req. 14.7). Personalizável: sem saldo, `acimaDoEstoque` é sempre falso.
+ */
 export function validarLinha(b: Brinde, qtd: number): Validacao {
   const erros: string[] = [];
   if (!b.ativo) erros.push("Este brinde não está ativo.");
-  if (!inteiroPositivo(qtd)) {
-    erros.push("Informe uma quantidade inteira, a partir de 1.");
-  } else if (b.tipo === "estoque") {
-    const disp = disponivel(b);
-    if (disp <= 0) erros.push("Indisponível no momento.");
-    else if (qtd > disp) erros.push(`Só há ${disp} disponíveis.`);
-  }
-  // Personalizável: sem saldo e sem mínimo por brinde; vale só o inteiro a partir de 1.
-  return { ok: erros.length === 0, erros };
+  if (!inteiroPositivo(qtd)) erros.push("Informe uma quantidade inteira, a partir de 1.");
+  const ok = erros.length === 0;
+  return { ok, erros, acimaDoEstoque: ok && b.tipo === "estoque" && qtd > disponivel(b) };
+}
+
+/**
+ * Índices dos itens do carrinho que passam do disponível de agora. Itens do mesmo brinde somam na ordem,
+ * como na reserva de `criarPedido`. Personalizável e quantidade inválida nunca entram.
+ */
+export function linhasAcimaDoEstoque(brindes: Brinde[], itens: { brindeId: string; qtd: number }[]): number[] {
+  const restante = new Map<string, number>();
+  const indices: number[] = [];
+  itens.forEach((it, i) => {
+    const b = brindes.find((x) => x.id === it.brindeId);
+    if (!b || b.tipo !== "estoque" || !inteiroPositivo(it.qtd)) return;
+    const disp = restante.get(b.id) ?? Math.max(0, disponivel(b));
+    if (it.qtd > disp) indices.push(i);
+    restante.set(b.id, Math.max(0, disp - it.qtd));
+  });
+  return indices;
+}
+
+/** Pedidos em Recebido ou Em preparação com pendente em linha cujo brinde tem disponível agora (destaque pós-entrada). */
+export function pedidosQuePodemReceberReserva(e: Estado): Pedido[] {
+  return e.pedidos.filter(
+    (p) =>
+      (p.estado === "solicitada" || p.estado === "em_alinhamento") &&
+      p.linhas.some((l) => {
+        if (l.tipo !== "estoque" || l.qtdPendente <= 0) return false;
+        const b = e.brindes.find((x) => x.id === l.brindeId);
+        return !!b && disponivel(b) > 0;
+      }),
+  );
 }
 
 /** Primeira data aceita: hoje + 2 dias úteis + prazo extra da personalização. */
@@ -208,29 +242,37 @@ function textoObrigatorio(texto: string | undefined, mensagem: string): string {
 /* Pedido: criar, mudar estado, orçamento, ajuste                      */
 /* ------------------------------------------------------------------ */
 
-export function criarPedido(e: Estado, dados: DadosPedido, linhas: LinhaEntrada[]): Estado {
+/**
+ * Nunca recusa por falta de saldo (Req. 14.7): reserva `min(qtd, disponível corrente)` por linha de estoque,
+ * na ordem (linhas do mesmo brinde já descontadas), e guarda o resto como pendente. Se alguma linha ficou
+ * acima do estoque e `cienteAcimaEstoque` é falso, lança MSG_CIENCIA_OBRIGATORIA e nada é criado.
+ */
+export function criarPedido(e: Estado, dados: DadosPedido, linhas: LinhaEntrada[], cienteAcimaEstoque: boolean): Estado {
   const d = clonar(e);
   const pessoa = d.pessoas.find((p) => p.id === dados.solicitanteId);
   if (!pessoa) throw new Error("Solicitante não encontrado.");
   const finalidade = textoObrigatorio(dados.finalidade, "Informe a finalidade do pedido.");
   if (linhas.length === 0) throw new Error("O carrinho está vazio.");
 
-  // Valida cada linha e a soma por brinde de estoque (duas linhas do mesmo brinde somam).
-  const somaPorBrinde = new Map<string, number>();
+  // Valida cada linha (só quantidade e ativo) e reserva o que couber, na ordem.
   const novasLinhas: LinhaPedido[] = [];
   for (const l of linhas) {
     const b = achar(d.brindes, l.brindeId, "Brinde");
     const r = validarLinha(b, l.qtd);
     if (!r.ok) throw new Error(`${b.nome}: ${r.erros.join(" ")}`);
+    let qtdReservada = 0;
     if (b.tipo === "estoque") {
-      const soma = (somaPorBrinde.get(b.id) ?? 0) + l.qtd;
-      if (soma > disponivel(b)) throw new Error(`${b.nome}: só há ${disponivel(b)} disponíveis.`);
-      somaPorBrinde.set(b.id, soma);
+      qtdReservada = Math.min(l.qtd, Math.max(0, disponivel(b)));
+      b.reserva += qtdReservada;
     }
+    const qtdPendente = b.tipo === "estoque" ? l.qtd - qtdReservada : 0;
     novasLinhas.push({
       brindeId: b.id,
       qtd: l.qtd,
       tipo: b.tipo,
+      qtdReservada,
+      qtdPendente,
+      acimaDoEstoque: qtdPendente > 0,
       custoUnitarioNaHora: b.tipo === "estoque" ? b.custoUnitario : null,
       personalizacao: l.personalizacao,
       orcamentoAceito: false,
@@ -240,11 +282,8 @@ export function criarPedido(e: Estado, dados: DadosPedido, linhas: LinhaEntrada[
   const data = validarDataDesejada(dados.dataDesejada, prazoExtraDasLinhas(d.brindes, linhas), hojeDe(d));
   if (!data.ok) throw new Error(data.erros.join(" "));
 
-  // Tudo válido: reserva só as linhas de estoque.
-  for (const l of novasLinhas) {
-    if (l.tipo !== "estoque") continue;
-    achar(d.brindes, l.brindeId, "Brinde").reserva += l.qtd;
-  }
+  const acima = novasLinhas.some((l) => l.acimaDoEstoque);
+  if (acima && !cienteAcimaEstoque) throw new Error(MSG_CIENCIA_OBRIGATORIA);
 
   const pedido: Pedido = {
     id: proximoId(d, "P"),
@@ -257,8 +296,44 @@ export function criarPedido(e: Estado, dados: DadosPedido, linhas: LinhaEntrada[
     linhas: novasLinhas,
     estado: "solicitada",
     historico: [{ estado: "solicitada", quem: pessoa.id, em: d.agora }],
+    acimaDoEstoque: acima,
+    cienteAcimaEstoque,
   };
   d.pedidos.push(pedido);
+  return d;
+}
+
+function recalcularAcima(p: Pedido): void {
+  for (const l of p.linhas) l.acimaDoEstoque = l.qtdPendente > 0;
+  p.acimaDoEstoque = p.linhas.some((l) => l.acimaDoEstoque);
+}
+
+/**
+ * Reserva o que chegou numa linha com pendente: soma `min(pendente, disponível agora)` à reserva.
+ * Só em Recebido ou Em preparação; sem disponível, falha sem alterar nada (Req. 15.7 e 15.8).
+ */
+export function reservarReposicao(e: Estado, pedidoId: string, indiceLinha: number, quem: string): Estado {
+  const d = clonar(e);
+  const p = achar(d.pedidos, pedidoId, "Pedido");
+  if (p.estado !== "solicitada" && p.estado !== "em_alinhamento") {
+    throw new Error(`A reserva só vale enquanto o pedido está em "${ROTULO_ESTADO.solicitada}" ou "${ROTULO_ESTADO.em_alinhamento}".`);
+  }
+  const l = linhaDoPedido(p, indiceLinha);
+  if (l.tipo !== "estoque" || l.qtdPendente <= 0) throw new Error("Esta linha não tem quantidade pendente.");
+  const b = achar(d.brindes, l.brindeId, "Brinde");
+  const n = Math.min(l.qtdPendente, Math.max(0, disponivel(b)));
+  if (n <= 0) throw new Error("Não há estoque disponível para reservar.");
+  l.qtdReservada += n;
+  l.qtdPendente -= n;
+  b.reserva += n;
+  recalcularAcima(p);
+  p.historico.push({
+    estado: p.estado,
+    tipo: "reposicao",
+    quem,
+    em: d.agora,
+    nota: `Reservado ${n} un. de ${b.nome}; pendente restante ${l.qtdPendente}`,
+  });
   return d;
 }
 
@@ -282,22 +357,39 @@ export function mudarEstado(
       (l) => l.tipo === "personalizavel" && !(l.orcamentoAceito && l.orcamentoUnitario !== undefined),
     );
     if (pendente) throw new Error("Falta o orçamento aceito de um brinde personalizável.");
+    // Req. 15.9: só vai a "pronto" com tudo reservado.
+    const totalPendente = p.linhas.reduce((s, l) => s + l.qtdPendente, 0);
+    if (totalPendente > 0) {
+      // Mensagem só da gestão: pode citar a quantidade pendente (design, "Tratamento de erros").
+      const un = totalPendente === 1 ? "1 unidade pendente" : `${totalPendente} unidades pendentes`;
+      throw new Error(
+        `Não é possível passar o pedido para "${ROTULO_ESTADO.pronto}" com ${un}. Reserve o que chegou enquanto o pedido estiver em "${ROTULO_ESTADO.em_alinhamento}".`,
+      );
+    }
   }
 
   if (alvo === "encerrada") {
+    // Baixa a quantidade reservada (em "pronto" é a quantidade inteira da linha).
     for (const l of p.linhas) {
-      if (l.tipo !== "estoque") continue;
+      if (l.tipo !== "estoque" || l.qtdReservada <= 0) continue;
       const b = achar(d.brindes, l.brindeId, "Brinde");
-      if (b.saldo < l.qtd || b.reserva < l.qtd) throw new Error("Estoque insuficiente para confirmar a retirada do pedido.");
-      b.saldo -= l.qtd;
-      b.reserva -= l.qtd;
-      registrar(d, { brindeId: l.brindeId, tipo: "saida", qtd: l.qtd, quem, pedidoId: p.id });
+      if (b.saldo < l.qtdReservada || b.reserva < l.qtdReservada) {
+        throw new Error("Estoque insuficiente para confirmar a retirada do pedido.");
+      }
+      b.saldo -= l.qtdReservada;
+      b.reserva -= l.qtdReservada;
+      registrar(d, { brindeId: l.brindeId, tipo: "saida", qtd: l.qtdReservada, quem, pedidoId: p.id });
     }
   } else if (exigeMotivo) {
+    // Libera só o que estava reservado e descarta o pendente (Req. 15.13).
     for (const l of p.linhas) {
       if (l.tipo !== "estoque") continue;
-      achar(d.brindes, l.brindeId, "Brinde").reserva -= l.qtd;
+      achar(d.brindes, l.brindeId, "Brinde").reserva -= l.qtdReservada;
+      l.qtdReservada = 0;
+      l.qtdPendente = 0;
+      l.acimaDoEstoque = false;
     }
+    p.acimaDoEstoque = false;
   }
 
   p.estado = alvo;
@@ -365,8 +457,22 @@ export function ajustarQuantidadeLinha(
   if (!inteiroPositivo(novaQtd)) throw new Error("Informe uma quantidade inteira, a partir de 1.");
   if (l.tipo === "estoque") {
     const delta = novaQtd - l.qtd;
-    if (delta > disponivel(b)) throw new Error(`Só há ${disponivel(b)} disponíveis a mais.`);
-    b.reserva += delta;
+    if (delta < 0) {
+      // Redução: abate primeiro o pendente e depois o reservado (Req. 15.11).
+      const reducao = -delta;
+      const doPendente = Math.min(reducao, l.qtdPendente);
+      const doReservado = reducao - doPendente;
+      l.qtdPendente -= doPendente;
+      l.qtdReservada -= doReservado;
+      b.reserva -= doReservado;
+    } else if (delta > 0) {
+      // Aumento: reserva o que couber e soma o resto ao pendente.
+      const reservar = Math.min(delta, Math.max(0, disponivel(b)));
+      l.qtdReservada += reservar;
+      l.qtdPendente += delta - reservar;
+      b.reserva += reservar;
+    }
+    recalcularAcima(p);
   } else {
     l.orcamentoAceito = false; // quantidade nova pede novo aceite
   }
@@ -430,7 +536,8 @@ export function reconstruirEstoque(brindes: Brinde[], pedidos: Pedido[], movs: M
     if (!ESTADOS_ATIVOS.includes(p.estado)) continue;
     for (const l of p.linhas) {
       if (l.tipo !== "estoque") continue;
-      reserva.set(l.brindeId, (reserva.get(l.brindeId) ?? 0) + l.qtd);
+      // Reserva parcial: só a parte reservada pesa; o pendente não tira nada do disponível.
+      reserva.set(l.brindeId, (reserva.get(l.brindeId) ?? 0) + l.qtdReservada);
     }
   }
   return brindes.map((b) => ({
@@ -684,6 +791,9 @@ export function metricasDoPeriodo(e: Estado, mes: string): Metricas {
   const encerrados = fechado ? [] : encerradosDoMes(e, mes);
   const prontos = e.pedidos.filter((p) => p.estado === "pronto");
   const ativos = e.pedidos.filter((p) => ESTADOS_ATIVOS.includes(p.estado));
+  const abertosAcima = e.pedidos.filter(
+    (p) => (p.estado === "solicitada" || p.estado === "em_alinhamento") && p.acimaDoEstoque,
+  );
   const nomes = new Map(e.pessoas.map((p) => [p.id, p.nome]));
   return {
     mes,
@@ -695,6 +805,8 @@ export function metricasDoPeriodo(e: Estado, mes: string): Metricas {
     prontosUnidades: prontos.reduce((s, p) => s + unidadesDoPedido(p), 0),
     custoProntosAguardando: prontos.reduce((s, p) => s + centavosDoPedido(p).centavos, 0) / 100,
     linhasAAvaliar: ativos.reduce((s, p) => s + centavosDoPedido(p).aAvaliar, 0),
+    pedidosAcimaDoEstoque: abertosAcima.length,
+    unidadesPendentes: abertosAcima.reduce((s, p) => s + p.linhas.reduce((n, l) => n + l.qtdPendente, 0), 0),
     porSolicitante: agrupar(
       encerrados,
       (p) => p.solicitanteId,

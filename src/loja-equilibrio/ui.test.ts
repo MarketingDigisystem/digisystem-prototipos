@@ -4,23 +4,23 @@
 // Decisão de design correspondente: .agents/tasks/loja-equilibrio/refino/achados.md (A-01).
 
 import { describe, expect, it } from "vitest";
-import { ZOOM_MINIATURA, urlDaFoto, zoomDaMiniatura } from "./ui";
+import { urlDaFoto } from "./ui";
 
 describe("urlDaFoto", () => {
   it("mantém o caminho com a base '/'", () => {
-    expect(urlDaFoto("/brindes/camiseta.png", "/")).toBe("/brindes/camiseta.png");
+    expect(urlDaFoto("/brindes/copo-termico.jpg", "/")).toBe("/brindes/copo-termico.jpg");
   });
 
   it("prefixa a base do GitHub Pages", () => {
-    expect(urlDaFoto("/brindes/camiseta.png", "/digisystem-prototipos/")).toBe("/digisystem-prototipos/brindes/camiseta.png");
+    expect(urlDaFoto("/brindes/copo-termico.jpg", "/digisystem-prototipos/")).toBe("/digisystem-prototipos/brindes/copo-termico.jpg");
   });
 
   it("aceita base sem barra final", () => {
-    expect(urlDaFoto("/brindes/caneca.png", "/digisystem-prototipos")).toBe("/digisystem-prototipos/brindes/caneca.png");
+    expect(urlDaFoto("/brindes/copo-termico.jpg", "/digisystem-prototipos")).toBe("/digisystem-prototipos/brindes/copo-termico.jpg");
   });
 
   it("não prefixa duas vezes", () => {
-    expect(urlDaFoto("/digisystem-prototipos/brindes/caneca.png", "/digisystem-prototipos/")).toBe("/digisystem-prototipos/brindes/caneca.png");
+    expect(urlDaFoto("/digisystem-prototipos/brindes/copo-termico.jpg", "/digisystem-prototipos/")).toBe("/digisystem-prototipos/brindes/copo-termico.jpg");
   });
 
   it("deixa URLs absolutas, data: e blob: como estão", () => {
@@ -32,19 +32,5 @@ describe("urlDaFoto", () => {
 
   it("caminho vazio (brinde sem foto) continua vazio", () => {
     expect(urlDaFoto("", "/digisystem-prototipos/")).toBe("");
-  });
-});
-
-describe("zoomDaMiniatura", () => {
-  it("amplia só as fotos em que o produto ocupa pouco do quadro, com zoom <= 1,25", () => {
-    expect(ZOOM_MINIATURA).toBeLessThanOrEqual(1.25);
-    expect(zoomDaMiniatura("/digisystem-prototipos/brindes/camiseta.png")).toEqual({ scale: ZOOM_MINIATURA });
-    expect(zoomDaMiniatura("/brindes/caderno-caneta-2.png")).toEqual({ scale: ZOOM_MINIATURA });
-  });
-
-  it("deixa as demais fotos como estão", () => {
-    expect(zoomDaMiniatura("/brindes/caneca.png")).toBeUndefined();
-    expect(zoomDaMiniatura("/brindes/folder.png")).toBeUndefined();
-    expect(zoomDaMiniatura("")).toBeUndefined();
   });
 });

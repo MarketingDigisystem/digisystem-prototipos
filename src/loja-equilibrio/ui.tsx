@@ -21,7 +21,7 @@ export function urlDaFoto(src: string, base: string): string {
 }
 
 /**
- * Foto real do brinde. As imagens de public/brindes/ são quadradas 1:1 (fundo contínuo), então preenche o quadro sem margem.
+ * Foto real do brinde. As imagens de public/brindes/ são quadradas 1:1 com fundo branco; `object-contain` nunca corta o produto.
  * Se a imagem falhar, entra um placeholder elegante da marca (gradiente navy/sky + silhueta discreta), nunca um bloco vazio.
  * `compacto`: miniaturas (carrinho, revisão, métricas, cadastro); o placeholder usa um ícone maior.
  *
@@ -44,18 +44,6 @@ export function FotoBrinde({
   return <FotoCarregavel key={url} url={url} alt={alt} className={className} compacto={compacto} />;
 }
 
-/**
- * Polimento final: só nas miniaturas (`compacto`), as fotos em que o produto ocupa pouco do quadrado (caixa do produto ≤ 55% nos dois eixos,
- * medida nos pixels de 800×800) ganham um zoom leve de 1,25 em torno do centro, sem cortar nem deformar (a caixa ampliada fica em ≤ 70%).
- * Foto grande (vitrine, página do brinde) nunca passa por aqui.
- */
-export const ZOOM_MINIATURA = 1.25;
-const FOTOS_PEQUENAS_NO_QUADRO = ["camiseta.png", "caderno-caneta-2.png"];
-export function zoomDaMiniatura(url: string): { scale: number } | undefined {
-  const arquivo = url.split("/").pop() ?? "";
-  return FOTOS_PEQUENAS_NO_QUADRO.includes(arquivo) ? { scale: ZOOM_MINIATURA } : undefined;
-}
-
 /** URLs que já terminaram de carregar nesta sessão: ao voltar para uma tela, a foto entra direto (sem pulso e sem fade). */
 const fotosJaCarregadas = new Set<string>();
 
@@ -72,7 +60,7 @@ function FotoCarregavel({ url, alt, className, compacto }: { url: string; alt: s
     [url],
   );
   return (
-    <div className={`le-foto relative aspect-square w-full overflow-hidden bg-secondary ${className}`}>
+    <div className={`le-foto relative aspect-square w-full overflow-hidden bg-white ${className}`}>
       {estado === "falhou" ? (
         <div role="img" aria-label={alt} className="grid size-full place-items-center bg-gradient-to-br from-navy to-sky">
           <Package className={`${compacto ? "size-1/2" : "size-1/4"} text-navy-foreground/70`} strokeWidth={1.25} aria-hidden />
@@ -94,9 +82,7 @@ function FotoCarregavel({ url, alt, className, compacto }: { url: string; alt: s
               setEstado((e) => (e === "carregando" ? "pronta" : e));
             }}
             onError={() => setEstado("falhou")}
-            // Propriedade `scale` (não `transform`): o zoom de hover do cartão da vitrine usa transform e não se soma a este.
-            style={compacto ? zoomDaMiniatura(url) : undefined}
-            className={`size-full object-cover ${estado === "carregando" ? "opacity-0" : "opacity-100"}`}
+            className={`size-full object-contain ${estado === "carregando" ? "opacity-0" : "opacity-100"}`}
           />
         </>
       )}
@@ -218,12 +204,11 @@ export function ParDeslizante<T extends string | number | boolean>({
   );
 }
 
-/** Selo informativo. "Últimas unidades" usa laranja com texto escuro; "Novidade" usa navy cheio com texto branco (Req. 12.12). */
-export function Selo({ tipo }: { tipo: "novidade" | "ultimas" }) {
-  const estilo = tipo === "novidade" ? "bg-navy text-white" : "bg-accent text-[color:var(--on-accent)]";
+/** Selo informativo do diretor: só "Novidade", navy cheio com texto branco (Req. 12.12). O estoque nunca vira selo (Req. 14). */
+export function Selo({ tipo }: { tipo: "novidade" }) {
   return (
-    <span className={`inline-flex h-6 items-center rounded-full px-2.5 font-display text-xs font-bold ${estilo}`}>
-      {tipo === "novidade" ? "Novidade" : "Últimas unidades"}
+    <span data-selo={tipo} className="inline-flex h-6 items-center rounded-full bg-navy px-2.5 font-display text-xs font-bold text-white">
+      Novidade
     </span>
   );
 }

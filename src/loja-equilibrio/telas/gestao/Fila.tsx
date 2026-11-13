@@ -8,8 +8,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
-import { TRANSICOES, hojeDe, unidadesDoPedido, urgencia, valorDoPedido } from "../../regras";
+import { TRANSICOES, hojeDe, pedidosQuePodemReceberReserva, unidadesDoPedido, urgencia, valorDoPedido } from "../../regras";
 import { SAIDA_ITEM_MS, estiloEntrada } from "../../movimento";
+import { useRota } from "../../rota";
 import { useLoja } from "../../store";
 import type { EstadoPedido, LinhaPedido, Pedido } from "../../tipos";
 import { useAbaixoDeLg, useArmadilhaFoco, useFaixaRolante, useRetido } from "../../ui";
@@ -24,11 +25,22 @@ import {
   PILL_ATIVO,
   PILL_INATIVO,
   ROTULO_ESTADO,
+  SeloAcimaDoEstoque,
   SeloEstado,
+  SeloPodeReservar,
   SeloUrgencia,
   brl,
   formatarInstante,
 } from "./comum";
+import {
+  DICA_HA_ESTOQUE,
+  estadoPermiteReserva,
+  filtrarAcimaDoEstoque,
+  motivoProntoBloqueado,
+  motivoReservaDaLinha,
+  motivoReservaDoPedido,
+  textoReservaBase,
+} from "./reposicao";
 
 type Filtro = "todos" | EstadoPedido;
 const FILTROS: { id: Filtro; rotulo: string }[] = [
@@ -52,7 +64,18 @@ function textoValor(p: Pedido): string {
 
 /* ------------------------------ Linha do detalhe ------------------------------ */
 
-function LinhaDetalhe({ pedido, indice, linha }: { pedido: Pedido; indice: number; linha: LinhaPedido }) {
+function LinhaDetalhe({
+  pedido,
+  indice,
+  linha,
+  reservaVisivel,
+}: {
+  pedido: Pedido;
+  indice: number;
+  linha: LinhaPedido;
+  /** Faixa do botão "Reservar o que chegou" da linha; fica montada depois de aparecer, para os controles não se moverem. */
+  reservaVisivel: boolean;
+}) {
   const loja = useLoja();
   const b = loja.brinde(linha.brindeId);
   const [valor, setValor] = useState(linha.orcamentoUnitario !== undefined ? String(linha.orcamentoUnitario) : "");
@@ -69,6 +92,12 @@ function LinhaDetalhe({ pedido, indice, linha }: { pedido: Pedido; indice: numbe
   const ajustar = () => {
     const r = loja.ajustarQuantidadeLinha(pedido.id, indice, Number(qtd), nota);
     if (r.ok) setNota("");
+    setErro(r.ok ? null : r.motivo);
+  };
+  const reservavel = reservaVisivel && linha.tipo === "estoque" && ajustavel;
+  const motivoReserva = reservavel ? motivoReservaDaLinha(pedido, indice, loja.dados.brindes) : null;
+  const reservar = () => {
+    const r = loja.reservarReposicao(pedido.id, indice);
     setErro(r.ok ? null : r.motivo);
   };
 
@@ -92,6 +121,14 @@ function LinhaDetalhe({ pedido, indice, linha }: { pedido: Pedido; indice: numbe
           </span>
         </p>
       </div>
+      {linha.tipo === "estoque" && (
+        <p className="mt-1 text-xs font-semibold text-foreground/80">
+          {textoReservaBase(linha)}
+          {linha.qtdPendente > 0 && (
+            <span className="font-bold text-[color:var(--warning-strong)]"> · Pendente {linha.qtdPendente}</span>
+          )}
+        </p>
+      )}
       {linha.personalizacao?.texto && <p className="mt-1 text-xs text-foreground/80">Texto: {linha.personalizacao.texto}</p>}
       {linha.personalizacao?.arte && <p className="text-xs text-foreground/80">Arte: {linha.personalizacao.arte}</p>}
       {linha.notaAjuste && <p className="mt-1 text-xs text-muted-foreground">Último ajuste: {linha.notaAjuste}</p>}
@@ -108,6 +145,15 @@ function LinhaDetalhe({ pedido, indice, linha }: { pedido: Pedido; indice: numbe
 
       {(orcavel || ajustavel) && (
         <div className="mt-2 grid gap-2 border-t pt-2">
+          {reservavel && (
+            <div>
+              <button type="button" disabled={!!motivoReserva} onClick={reservar} className={BTN_SECUNDARIO}>
+                Reservar o que chegou
+              </button>
+              {/* Motivo em texto visível (não só dica) e faixa de altura fixa: trocar o texto não move os controles abaixo. */}
+              <p className="mt-1 min-h-5 text-xs text-foreground/80">{motivoReserva ?? DICA_HA_ESTOQUE}</p>
+            </div>
+          )}
           {orcavel && (
             <div className="flex items-end gap-2">
               <label className="block min-w-0 flex-1">
@@ -166,6 +212,22 @@ function Detalhe({ pedido, onFechar }: { pedido: Pedido; onFechar: () => void })
     setErro(r.ok ? null : r.motivo);
   };
 
+  // Faixa de reposição: uma vez que o pedido teve pendente (ou reserva de reposição) nesta abertura, ela fica montada
+  // com altura fixa, mesmo depois de zerar o pendente. Assim nenhum controle muda de lugar ao reservar.
+  const faixaRef = useRef(false);
+  const linhasVistasRef = useRef<Set<number>>(new Set());
+  pedido.linhas.forEach((l, i) => {
+    if (l.tipo === "estoque" && l.qtdPendente > 0) linhasVistasRef.current.add(i);
+  });
+  if (pedido.acimaDoEstoque || pedido.historico.some((h) => h.tipo === "reposicao")) faixaRef.current = true;
+  const mostrarFaixa = faixaRef.current && estadoPermiteReserva(pedido);
+  const motivoReservaPedido = mostrarFaixa ? motivoReservaDoPedido(pedido, loja.dados.brindes) : null;
+  const motivoPronto = motivoProntoBloqueado(pedido);
+  const reservarPedido = () => {
+    const r = loja.reservarReposicaoDoPedido(pedido.id);
+    setErro(r.ok ? null : r.motivo);
+  };
+
   const principal = alvos.find((a) => a === "em_alinhamento" || a === "pronto" || a === "encerrada");
   const ROTULO_ACAO: Partial<Record<EstadoPedido, string>> = {
     em_alinhamento: "Colocar em preparação",
@@ -198,6 +260,9 @@ function Detalhe({ pedido, onFechar }: { pedido: Pedido; onFechar: () => void })
       </header>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+        {faixaRef.current && (
+          <div className="min-h-6">{pedido.acimaDoEstoque && <SeloAcimaDoEstoque />}</div>
+        )}
         <dl className="grid gap-2 text-sm">
           <div>
             <dt className="text-xs font-semibold text-muted-foreground">Finalidade</dt>
@@ -231,7 +296,13 @@ function Detalhe({ pedido, onFechar }: { pedido: Pedido; onFechar: () => void })
           <h3 className="mb-2 font-display text-base font-bold text-navy">Itens</h3>
           <ul className="grid gap-2">
             {pedido.linhas.map((l, i) => (
-              <LinhaDetalhe key={`${pedido.id}-${i}-${l.qtd}-${l.orcamentoUnitario ?? ""}`} pedido={pedido} indice={i} linha={l} />
+              <LinhaDetalhe
+                key={`${pedido.id}-${i}-${l.qtd}-${l.orcamentoUnitario ?? ""}`}
+                pedido={pedido}
+                indice={i}
+                linha={l}
+                reservaVisivel={linhasVistasRef.current.has(i)}
+              />
             ))}
           </ul>
         </section>
@@ -242,7 +313,8 @@ function Detalhe({ pedido, onFechar }: { pedido: Pedido; onFechar: () => void })
             {pedido.historico.map((h, i) => (
               <li key={i} className="text-sm">
                 <p className="font-semibold">
-                  {ROTULO_ESTADO[h.estado]} <span className="font-normal text-muted-foreground">· {loja.nomeDaPessoa(h.quem)}</span>
+                  {h.tipo === "reposicao" ? "Reserva do que chegou" : ROTULO_ESTADO[h.estado]}{" "}
+                  <span className="font-normal text-muted-foreground">· {loja.nomeDaPessoa(h.quem)}</span>
                 </p>
                 <p className="text-xs text-muted-foreground">{formatarInstante(h.em)}</p>
                 {h.motivo && <p className="text-xs">Motivo: {h.motivo}</p>}
@@ -259,6 +331,23 @@ function Detalhe({ pedido, onFechar }: { pedido: Pedido; onFechar: () => void })
           <p className="min-h-11 py-3 text-sm text-muted-foreground">Pedido {ROTULO_ESTADO[pedido.estado].toLowerCase()}: nada a fazer.</p>
         ) : (
           <>
+            {mostrarFaixa && (
+              <div className="mb-2 flex flex-wrap items-start gap-x-3 gap-y-1 border-b pb-2">
+                <button
+                  type="button"
+                  disabled={!!motivoReservaPedido}
+                  aria-describedby="fila-motivo-reserva"
+                  onClick={reservarPedido}
+                  className={BTN_SECUNDARIO}
+                >
+                  Reservar o que chegou
+                </button>
+                {/* Motivo em texto visível, com altura reservada de duas linhas: trocar o texto não move os controles. */}
+                <p id="fila-motivo-reserva" className="min-h-8 min-w-0 flex-1 basis-44 py-0.5 text-xs text-foreground/80">
+                  {motivoReservaPedido ?? DICA_HA_ESTOQUE}
+                </p>
+              </div>
+            )}
             <label className="block">
               <span className="mb-1 block text-xs font-semibold text-foreground/80">
                 {pedeMotivo ? "Motivo (obrigatório para recusar ou cancelar)" : "Motivo"}
@@ -274,7 +363,14 @@ function Detalhe({ pedido, onFechar }: { pedido: Pedido; onFechar: () => void })
             <ErroInline texto={erro} className="mt-1" />
             <div className="flex flex-wrap gap-2">
               {principal && (
-                <button type="button" onClick={() => mudar(principal)} className={principal === "pronto" ? BTN_LARANJA : BTN_PRIMARIO}>
+                <button
+                  type="button"
+                  onClick={() => mudar(principal)}
+                  // Bloqueado com pendente: visual de desabilitado, mas ainda clicável, para a regra mostrar a própria mensagem se for tentado.
+                  aria-disabled={principal === "pronto" && !!motivoPronto ? true : undefined}
+                  aria-describedby={principal === "pronto" && motivoPronto ? "fila-motivo-pronto" : undefined}
+                  className={`${principal === "pronto" ? BTN_LARANJA : BTN_PRIMARIO} ${principal === "pronto" && motivoPronto ? "cursor-not-allowed opacity-50" : ""}`}
+                >
                   {ROTULO_ACAO[principal]}
                 </button>
               )}
@@ -284,6 +380,12 @@ function Detalhe({ pedido, onFechar }: { pedido: Pedido; onFechar: () => void })
                 </button>
               ))}
             </div>
+            {/* Faixa fixa de duas linhas para o motivo do bloqueio de "Pronto para retirada" (só em Em preparação, onde o botão existe). */}
+            {mostrarFaixa && pedido.estado === "em_alinhamento" && (
+              <p id="fila-motivo-pronto" className="mt-1 min-h-8 text-xs font-semibold text-foreground/80">
+                {motivoPronto}
+              </p>
+            )}
           </>
         )}
       </footer>
@@ -297,8 +399,13 @@ export function Fila() {
   const loja = useLoja();
   const { dados } = loja;
   const hoje = hojeDe(dados);
+  const rota = useRota();
   const [filtro, setFiltro] = useState<Filtro>("todos");
+  // "Acima do estoque": filtro extra que se soma ao do estado. Pode nascer ligado pelo link da tela de Estoque (?filtro=acima).
+  const [soAcima, setSoAcima] = useState(() => rota.params.get("filtro") === "acima");
   const [selecionado, setSelecionado] = useState<string | null>(null);
+  const podemReservar = useMemo(() => new Set(pedidosQuePodemReceberReserva(dados).map((p) => p.id)), [dados]);
+  const totalAcima = useMemo(() => dados.pedidos.filter((p) => p.acimaDoEstoque).length, [dados.pedidos]);
 
   const contagem = useMemo(() => {
     const c: Record<Filtro, number> = { todos: dados.pedidos.length, solicitada: 0, em_alinhamento: 0, pronto: 0, encerrada: 0, recusada: 0, cancelada: 0 };
@@ -307,7 +414,10 @@ export function Fila() {
   }, [dados.pedidos]);
 
   const lista = useMemo(() => {
-    const filtrados = dados.pedidos.filter((p) => filtro === "todos" || p.estado === filtro);
+    const filtrados = filtrarAcimaDoEstoque(
+      dados.pedidos.filter((p) => filtro === "todos" || p.estado === filtro),
+      soAcima,
+    );
     const chave = (p: Pedido) => {
       const ativo = ATIVOS.includes(p.estado);
       return ativo ? RANK_URGENCIA[urgencia(p.dataDesejada, hoje)] : 9;
@@ -318,7 +428,7 @@ export function Fila() {
         (a.dataDesejada ?? "9999").localeCompare(b.dataDesejada ?? "9999") ||
         b.id.localeCompare(a.id, "pt-BR", { numeric: true }),
     );
-  }, [dados.pedidos, filtro, hoje]);
+  }, [dados.pedidos, filtro, soAcima, hoje]);
 
   const atual = dados.pedidos.find((p) => p.id === selecionado) ?? null;
 
@@ -364,6 +474,16 @@ export function Fila() {
                   <Contador n={contagem[f.id]} />
                 </button>
               ))}
+              {/* Filtro extra, sempre no fim da faixa: não desloca as pills de estado e soma com a escolhida. */}
+              <button
+                type="button"
+                aria-pressed={soAcima}
+                onClick={() => setSoAcima((v) => !v)}
+                className={`${PILL} ml-2 ${soAcima ? PILL_ATIVO : PILL_INATIVO}`}
+              >
+                Acima do estoque
+                <Contador n={totalAcima} />
+              </button>
             </div>
           </div>
 
@@ -396,6 +516,12 @@ export function Fila() {
                         <span title={`${p.areaSolicitante || "Sem área"} · ${p.finalidade}`} className="line-clamp-2 break-words text-xs text-muted-foreground">
                           {p.areaSolicitante || "Sem área"} · {p.finalidade}
                         </span>
+                        {p.acimaDoEstoque && (
+                          <span className="mt-1 flex flex-wrap gap-1.5">
+                            <SeloAcimaDoEstoque />
+                            {podemReservar.has(p.id) && <SeloPodeReservar />}
+                          </span>
+                        )}
                       </span>
                       <span className="min-w-0 text-sm">
                         <span className="font-semibold">{textoValor(p)}</span>

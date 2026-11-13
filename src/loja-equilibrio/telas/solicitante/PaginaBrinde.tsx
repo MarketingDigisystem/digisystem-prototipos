@@ -10,10 +10,12 @@ import { useMemo, useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { brl } from "../../formato";
 import { PrecoBrinde } from "../../PrecoBrinde";
-import { disponivel, precoDaLinhaDoCarrinho, precoUnitarioLinha, selos, subtotalDaLinha, validarLinha } from "../../regras";
+import { AvisoAcimaDoEstoque } from "../../AvisoAcimaDoEstoque";
+import { precoDaLinhaDoCarrinho, precoUnitarioLinha, subtotalDaLinha, validarLinha } from "../../regras";
 import { href } from "../../rota";
 import { useLoja } from "../../store";
 import type { Brinde, OpcaoPersonalizacao } from "../../tipos";
+import { visaoDoBrindeParaDiretor } from "../../visaoDiretor";
 import { FotoBrinde, Msg, Selo } from "../../ui";
 
 const CAMPO =
@@ -56,9 +58,10 @@ export function PaginaBrinde({ slug }: { slug: string }) {
 
 function Conteudo({ b }: { b: Brinde }) {
   const loja = useLoja();
-  const s = selos(b);
   const personalizavel = b.tipo === "personalizavel";
 
+  const galeria = [b.foto, b.fotoExtra].filter((f): f is string => Boolean(f));
+  const [fotoAtual, setFotoAtual] = useState(0);
   const [qtdTexto, setQtdTexto] = useState("1");
   const [tocou, setTocou] = useState(false);
   const [texto, setTexto] = useState("");
@@ -69,7 +72,9 @@ function Conteudo({ b }: { b: Brinde }) {
 
   const qtd = Number(qtdTexto);
   const validacao = useMemo(() => validarLinha(b, qtdTexto.trim() === "" ? Number.NaN : qtd), [b, qtd, qtdTexto]);
-  const esgotado = !personalizavel && s.indisponivel;
+  // Única leitura de estoque da página: um booleano (a quantidade escolhida passa do que há agora?). Sem número.
+  const visao = visaoDoBrindeParaDiretor(b, qtdTexto.trim() === "" ? Number.NaN : qtd);
+  const s = visao.selos;
   // A mensagem aparece depois de a pessoa mexer na quantidade ou tentar adicionar; nunca antes.
   const erro = erroEnvio ?? (tocou && !validacao.ok ? validacao.erros.join(" ") : null);
 
@@ -125,15 +130,31 @@ function Conteudo({ b }: { b: Brinde }) {
       <div className="grid gap-6 md:grid-cols-2 md:gap-8 lg:gap-12">
         {/* Foto grande; no desktop acompanha a rolagem. */}
         <div className="md:sticky md:top-[11rem] md:self-start lg:top-36">
-          <div className="relative overflow-hidden rounded-3xl border bg-secondary shadow-card">
-            <FotoBrinde src={b.foto} alt={b.nome} className={esgotado ? "opacity-60" : ""} />
-            {(s.novidade || s.ultimasUnidades) && (
+          <div className="relative overflow-hidden rounded-3xl border bg-white shadow-card">
+            <FotoBrinde src={galeria[fotoAtual]} alt={galeria.length > 1 ? `${b.nome} (foto ${fotoAtual + 1} de ${galeria.length})` : b.nome} />
+            {s.novidade && (
               <div className="absolute left-3 top-3 flex flex-col items-start gap-1">
-                {s.novidade && <Selo tipo="novidade" />}
-                {s.ultimasUnidades && <Selo tipo="ultimas" />}
+                <Selo tipo="novidade" />
               </div>
             )}
           </div>
+          {/* Miniaturas só quando há segunda foto. Trocar de foto não muda a caixa grande nem as miniaturas. */}
+          {galeria.length > 1 && (
+            <div className="mt-3 flex gap-2">
+              {galeria.map((f, i) => (
+                <button
+                  key={f}
+                  type="button"
+                  aria-label={`Ver foto ${i + 1} de ${galeria.length}`}
+                  aria-pressed={i === fotoAtual}
+                  onClick={() => setFotoAtual(i)}
+                  className={`size-16 shrink-0 overflow-hidden rounded-xl border-2 bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)] ${i === fotoAtual ? "border-navy" : "border-transparent ring-1 ring-border"}`}
+                >
+                  <FotoBrinde src={f} alt="" compacto />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex min-w-0 flex-col gap-5">
@@ -149,7 +170,6 @@ function Conteudo({ b }: { b: Brinde }) {
               <p className="min-h-5 text-sm leading-5 text-foreground/80" aria-live="polite">
                 {subtotal !== null && precoUnit !== null ? `${qtd} × ${brl(precoUnit)} = ${brl(subtotal)}` : ""}
               </p>
-              {esgotado && <p className="text-sm font-semibold text-muted-foreground">Indisponível no momento</p>}
             </div>
           </header>
 
@@ -162,10 +182,7 @@ function Conteudo({ b }: { b: Brinde }) {
             </dl>
           )}
 
-          {!esgotado && (
-            <>
-              {!personalizavel && <p className="text-sm font-semibold text-foreground">{disponivel(b)} disponíveis</p>}
-
+          <>
               {personalizavel && opcoes.length > 0 && (
                 <fieldset className="grid gap-3 rounded-2xl border p-4">
                   <legend className="px-1 font-display text-sm font-bold text-navy">Personalização</legend>
@@ -216,7 +233,7 @@ function Conteudo({ b }: { b: Brinde }) {
                         setErroEnvio(null);
                       }}
                       aria-invalid={!!erro}
-                      aria-describedby="qtd-erro"
+                      aria-describedby="qtd-erro qtd-aviso"
                       className={`${CAMPO} ${erro ? "border-destructive" : ""}`}
                     />
                   </div>
@@ -232,23 +249,10 @@ function Conteudo({ b }: { b: Brinde }) {
                 <p id="qtd-erro" role={erro ? "alert" : undefined} className="mt-2 min-h-10 text-sm font-semibold text-[color:var(--destructive-strong)] sm:min-h-5">
                   <Msg texto={erro} />
                 </p>
+                {/* Aviso acima do estoque (sem número): faixa de altura reservada abaixo do campo e do botão, que não se movem. */}
+                <AvisoAcimaDoEstoque id="qtd-aviso" visivel={visao.acimaDoEstoque} className="mt-1" />
               </div>
-            </>
-          )}
-
-          {esgotado && (
-            <div className="rounded-2xl bg-secondary p-4 text-sm text-foreground/85">
-              Este brinde está sem saldo livre agora. Volte à vitrine para ver outros brindes ou sugira um novo.
-              <div className="mt-3">
-                <a
-                  href={href("")}
-                  className="inline-flex h-11 items-center rounded-full bg-navy px-5 font-display text-sm font-bold text-navy-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]"
-                >
-                  Voltar aos brindes
-                </a>
-              </div>
-            </div>
-          )}
+          </>
         </div>
       </div>
     </section>

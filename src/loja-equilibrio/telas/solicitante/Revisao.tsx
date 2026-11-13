@@ -10,7 +10,16 @@ import { useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { PrecoBrinde } from "../../PrecoBrinde";
 import { TotalPedido } from "../../TotalPedido";
-import { formatarDdMm, hojeDe, precoDaLinhaDoCarrinho, prazoExtraDasLinhas, totalDoCarrinho, validarDataDesejada } from "../../regras";
+import { MSG_CIENCIA_OBRIGATORIA, TEXTO_CIENCIA, TEXTO_DATA_NAO_GARANTIDA } from "../../avisos";
+import {
+  formatarDdMm,
+  hojeDe,
+  linhasAcimaDoEstoque,
+  precoDaLinhaDoCarrinho,
+  prazoExtraDasLinhas,
+  totalDoCarrinho,
+  validarDataDesejada,
+} from "../../regras";
 import { href } from "../../rota";
 import { useLoja } from "../../store";
 import type { Pedido } from "../../tipos";
@@ -29,6 +38,7 @@ export function Revisao() {
   const [destino, setDestino] = useState("");
   const [data, setData] = useState("");
   const [observacao, setObservacao] = useState("");
+  const [ciente, setCiente] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [criado, setCriado] = useState<Pedido | null>(null);
 
@@ -76,6 +86,8 @@ export function Revisao() {
   const validade = validarDataDesejada(data || undefined, prazoExtra, hoje);
 
   const { total, aAvaliar } = totalDoCarrinho(loja.dados.brindes, loja.carrinho);
+  // Reavaliado a cada renderização e de novo no envio, contra o estoque de agora (Req. 14.11).
+  const haAcimaDoEstoque = linhasAcimaDoEstoque(loja.dados.brindes, loja.carrinho).length > 0;
 
   const enviar = () => {
     if (!finalidade.trim()) {
@@ -86,12 +98,19 @@ export function Revisao() {
       setErro(validade.erros.join(" "));
       return;
     }
-    const r = loja.criarPedido({
-      finalidade,
-      destino: destino || undefined,
-      observacao: observacao || undefined,
-      dataDesejada: data || undefined,
-    });
+    if (haAcimaDoEstoque && !ciente) {
+      setErro(MSG_CIENCIA_OBRIGATORIA);
+      return;
+    }
+    const r = loja.criarPedido(
+      {
+        finalidade,
+        destino: destino || undefined,
+        observacao: observacao || undefined,
+        dataDesejada: data || undefined,
+      },
+      haAcimaDoEstoque && ciente, // só é gravada verdadeira se há linha acima do estoque
+    );
     if (!r.ok) {
       setErro(r.motivo); // o carrinho continua como estava
       return;
@@ -190,6 +209,11 @@ export function Revisao() {
                   )}
                 </div>
               )}
+              {haAcimaDoEstoque && data !== "" && (
+                <p role="status" className="le-msg basis-full font-semibold text-foreground/85">
+                  {TEXTO_DATA_NAO_GARANTIDA}
+                </p>
+              )}
             </div>
           </div>
           <label className="block text-sm">
@@ -201,11 +225,28 @@ export function Revisao() {
               placeholder="Algo que o Marketing precise saber (opcional)"
             />
           </label>
+          {/* Faixa de altura reservada para a ciência: aparecer ou sumir não move o botão (âncora fixa). */}
+          <div className="min-h-[4.5rem] sm:min-h-14" role="group" aria-label="Ciência do prazo">
+            {haAcimaDoEstoque && (
+              <label className="le-msg flex min-h-11 cursor-pointer items-start gap-3 rounded-2xl bg-secondary px-4 py-3 text-sm text-foreground/90">
+                <input
+                  type="checkbox"
+                  checked={ciente}
+                  onChange={(e) => {
+                    setCiente(e.target.checked);
+                    setErro(null);
+                  }}
+                  className="mt-0.5 size-5 shrink-0 accent-[var(--navy)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]"
+                />
+                <span>{TEXTO_CIENCIA}</span>
+              </label>
+            )}
+          </div>
           <div>
             <button type="submit" className={`${BOTAO_PRIMARIO} w-full`}>
               Enviar pedido
             </button>
-            <p role={erro ? "alert" : undefined} className="mt-2 min-h-5 text-sm font-semibold text-[color:var(--destructive-strong)]">
+            <p role={erro ? "alert" : undefined} className="mt-2 min-h-10 text-sm font-semibold text-[color:var(--destructive-strong)]">
               <Msg texto={erro} />
             </p>
           </div>

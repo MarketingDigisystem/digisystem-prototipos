@@ -19,6 +19,7 @@ import {
   mudarEstado as rMudarEstado,
   registrarAjuste as rRegistrarAjuste,
   registrarEntrada as rRegistrarEntrada,
+  reservarReposicao as rReservarReposicao,
   alternarAtivo as rAlternarAtivo,
   salvarBrinde as rSalvarBrinde,
   validarLinha,
@@ -133,7 +134,11 @@ export interface Loja {
   limparCarrinho: () => void;
 
   /** Cria o pedido a partir do carrinho. Se falhar, o carrinho fica preservado. */
-  criarPedido: (d: Omit<DadosPedido, "solicitanteId">) => Resultado<Pedido>;
+  criarPedido: (d: Omit<DadosPedido, "solicitanteId">, cienteAcimaEstoque: boolean) => Resultado<Pedido>;
+  /** Gestão: reserva o que chegou numa linha com pendente. */
+  reservarReposicao: (pedidoId: string, indiceLinha: number) => Resultado;
+  /** Gestão: aplica `reservarReposicao` a cada linha com pendente, na ordem, ignorando as que não têm disponível. Falha se nada foi reservado. */
+  reservarReposicaoDoPedido: (pedidoId: string) => Resultado;
   mudarEstado: (pedidoId: string, alvo: EstadoPedido, motivo?: string) => Resultado;
   informarOrcamento: (pedidoId: string, indiceLinha: number, valorUnitario: number) => Resultado;
   aceitarOrcamento: (pedidoId: string, indiceLinha: number) => Resultado;
@@ -256,7 +261,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
       remover: (chave) => gravarCarrinho(ref.current.carrinho.filter((l) => l.chave !== chave)),
       limparCarrinho: () => gravarCarrinho([]),
 
-      criarPedido: (d) => {
+      criarPedido: (d, cienteAcimaEstoque) => {
         const atual = ref.current;
         try {
           const antes = atual.dados.pedidos.length;
@@ -264,6 +269,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
             atual.dados,
             { ...d, solicitanteId: atual.diretorId },
             atual.carrinho.map((l) => ({ brindeId: l.brindeId, qtd: l.qtd, personalizacao: l.personalizacao })),
+            cienteAcimaEstoque,
           );
           const pedido = dados.pedidos[antes];
           ref.current = { ...atual, dados, carrinho: [] };
@@ -273,6 +279,25 @@ export function LojaProvider({ children }: { children: ReactNode }) {
           return { ok: false, motivo: mensagem(e) }; // carrinho preservado
         }
       },
+      reservarReposicao: (pedidoId, i) => aplicar((e, quem) => rReservarReposicao(e, pedidoId, i, quem)),
+      reservarReposicaoDoPedido: (pedidoId) =>
+        aplicar((e, quem) => {
+          const p = e.pedidos.find((x) => x.id === pedidoId);
+          if (!p) throw new Error("Pedido não encontrado.");
+          let atual = e;
+          let reservou = false;
+          p.linhas.forEach((l, i) => {
+            if (l.tipo !== "estoque" || l.qtdPendente <= 0) return;
+            try {
+              atual = rReservarReposicao(atual, pedidoId, i, quem);
+              reservou = true;
+            } catch {
+              /* linha sem disponível: segue para a próxima */
+            }
+          });
+          if (!reservou) throw new Error("Não há estoque disponível para reservar.");
+          return atual;
+        }),
       mudarEstado: (pedidoId, alvo, motivo) => aplicar((e, quem) => rMudarEstado(e, pedidoId, alvo, quem, motivo)),
       informarOrcamento: (pedidoId, i, valor) => aplicar((e, quem) => rInformarOrcamento(e, pedidoId, i, valor, quem)),
       aceitarOrcamento: (pedidoId, i) => aplicar((e, quem) => rAceitarOrcamento(e, pedidoId, i, quem)),

@@ -9,8 +9,10 @@
 import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ROTULO_ESTADO, dataCurta, dataHora } from "../../formato";
+import { AvisoDeReposicao } from "../../AvisoAcimaDoEstoque";
 import { PrecoBrinde } from "../../PrecoBrinde";
 import { TotalPedido, textoTotal } from "../../TotalPedido";
+import { aguardaReposicao } from "../../visaoDiretor";
 import { TRANSICOES, formatarDdMm, valorDoPedido } from "../../regras";
 import { href } from "../../rota";
 import { useLoja } from "../../store";
@@ -131,6 +133,7 @@ export function Pedidos() {
                         <Estado e={p.estado} />
                         <span className="text-sm font-semibold tabular-nums">{textoTotal(v.valor, v.aAvaliar)}</span>
                       </span>
+                      <AvisoDeReposicao visivel={aguardaReposicao(p)} compacto className="mt-1" />
                     </div>
                     <span className="hidden shrink-0 text-sm font-semibold tabular-nums sm:inline">{textoTotal(v.valor, v.aAvaliar)}</span>
                     <span className="hidden sm:inline-flex">
@@ -163,7 +166,7 @@ function Detalhe({ p, voltar }: { p: Pedido; voltar: () => void }) {
     const r = loja.mudarEstado(p.id, "cancelada", motivo);
     if (r.ok) {
       setMotivo("");
-      setMsg({ ok: true, texto: "Pedido cancelado. As reservas foram liberadas." });
+      setMsg({ ok: true, texto: "Pedido cancelado." });
     } else setMsg({ ok: false, texto: r.motivo });
   };
 
@@ -198,7 +201,7 @@ function Detalhe({ p, voltar }: { p: Pedido; voltar: () => void }) {
       ) : null}
 
       <div className="mt-5">
-        <LinhaDoTempo atual={p.estado} historico={p.historico} />
+        <LinhaDoTempo atual={p.estado} historico={p.historico} aguardaReposicao={aguardaReposicao(p)} />
       </div>
 
       <h2 className="mb-2 mt-6 font-display text-lg font-bold text-navy">Itens</h2>
@@ -220,7 +223,8 @@ function Detalhe({ p, voltar }: { p: Pedido; voltar: () => void }) {
                   {l.notaAjuste && <p className="mt-1 text-xs text-foreground/80">Ajuste do Marketing: {l.notaAjuste}</p>}
                 </div>
                 {/* Estoque: custo gravado na linha. Personalizável: orçamento aceito; antes disso, sem valor em reais. */}
-                <PrecoBrinde modo="linha" linha={l} className="max-w-[12rem] text-right" />
+                {/* No celular o preço quebra para a linha de baixo: alinhar à esquerda, junto do nome. */}
+                <PrecoBrinde modo="linha" linha={l} className="max-w-[12rem] text-left sm:text-right" />
               </div>
               {personalizavel && temOrcamento && !l.orcamentoAceito && (
                 <div className="mt-3 flex flex-wrap items-center gap-3 rounded-2xl bg-secondary p-3">
@@ -256,7 +260,7 @@ function Detalhe({ p, voltar }: { p: Pedido; voltar: () => void }) {
 
       <h2 className="mb-2 mt-4 font-display text-lg font-bold text-navy">Histórico</h2>
       <ul className="space-y-1.5 text-sm">
-        {p.historico.map((h, i) => (
+        {p.historico.filter((h) => h.tipo !== "reposicao").map((h, i) => (
           <li key={i} className="rounded-xl bg-secondary px-3 py-2">
             <span className="font-semibold text-navy">{ROTULO_ESTADO[h.estado]}</span>
             <span className="text-muted-foreground">

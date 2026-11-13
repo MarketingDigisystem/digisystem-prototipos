@@ -8,12 +8,13 @@
 // quando o estado muda, cor, fundo e anel das etapas fazem transição (sem mexer no tamanho).
 
 import { Check } from "lucide-react";
+import { AvisoDeReposicao } from "../../AvisoAcimaDoEstoque";
 import { ROTULO_ESTADO } from "../../formato";
 import { estiloEntrada } from "../../movimento";
 import type { EstadoPedido, Evento } from "../../tipos";
 
 const ETAPAS: { estado: EstadoPedido; titulo: string; frase: string }[] = [
-  { estado: "solicitada", titulo: ROTULO_ESTADO.solicitada, frase: "O Marketing recebe o pedido e reserva os brindes de estoque." },
+  { estado: "solicitada", titulo: ROTULO_ESTADO.solicitada, frase: "O Marketing recebe o pedido e separa os brindes de estoque." },
   { estado: "em_alinhamento", titulo: ROTULO_ESTADO.em_alinhamento, frase: "O Marketing confere detalhes e, se for personalizado, informa o valor." },
   { estado: "pronto", titulo: ROTULO_ESTADO.pronto, frase: "O pedido está separado e esperando você." },
   { estado: "encerrada", titulo: ROTULO_ESTADO.encerrada, frase: "Retirada confirmada e estoque baixado." },
@@ -28,10 +29,12 @@ function alcancada(atual: EstadoPedido | undefined, historico: Evento[] | undefi
   return Math.max(0, ...anteriores);
 }
 
-export function LinhaDoTempo({ atual, historico }: { atual?: EstadoPedido; historico?: Evento[] }) {
+/** `aguardaReposicao`: o pedido tem parte aguardando reposição (booleano, sem número); o aviso só aparece enquanto vale. */
+export function LinhaDoTempo({ atual, historico, aguardaReposicao = false }: { atual?: EstadoPedido; historico?: Evento[]; aguardaReposicao?: boolean }) {
   const ate = alcancada(atual, historico);
   const interrompido = atual === "recusada" || atual === "cancelada";
   return (
+    <>
     <ol className="grid gap-3 sm:grid-cols-4" aria-label="Etapas do pedido">
       {ETAPAS.map((e, i) => {
         const feita = i < ate || (i === ate && atual === "encerrada");
@@ -61,5 +64,7 @@ export function LinhaDoTempo({ atual, historico }: { atual?: EstadoPedido; histo
         );
       })}
     </ol>
+    <AvisoDeReposicao visivel={aguardaReposicao} className="mt-3" />
+    </>
   );
 }

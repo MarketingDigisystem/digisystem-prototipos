@@ -8,7 +8,7 @@
 
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
-import { CATEGORIA_TODOS, contarPorCategoria, disponivel, filtrarBrindes, selos, type OrdemVitrine } from "../../regras";
+import { CATEGORIA_TODOS, contarPorCategoria, filtrarBrindes, selosDoDiretor, type OrdemVitrine } from "../../regras";
 import { href } from "../../rota";
 import { useLoja } from "../../store";
 import type { Brinde } from "../../tipos";
@@ -31,8 +31,7 @@ const CAMPO =
   "h-11 rounded-full border bg-card px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]";
 
 function Cartao({ b, indice }: { b: Brinde; indice: number }) {
-  const s = selos(b);
-  const disp = disponivel(b);
+  const s = selosDoDiretor(b);
   // li: entrada escalonada (fade) e elevação no hover por transform; a sombra de hover vive num pseudo-elemento do li (.le-cartao), fora do overflow do link.
   return (
     <li className="le-cartao le-entra" style={estiloEntrada(indice)}>
@@ -41,25 +40,19 @@ function Cartao({ b, indice }: { b: Brinde; indice: number }) {
         className="group flex h-full flex-col overflow-hidden rounded-2xl border bg-card shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--le-foco)]"
       >
         <div className="relative">
-          <FotoBrinde src={b.foto} alt={b.nome} className={s.indisponivel ? "opacity-60" : ""} />
-          {(s.novidade || s.ultimasUnidades) && (
+          <FotoBrinde src={b.foto} alt={b.nome} />
+          {s.novidade && (
             <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
-              {s.novidade && <Selo tipo="novidade" />}
-              {s.ultimasUnidades && <Selo tipo="ultimas" />}
+              <Selo tipo="novidade" />
             </div>
           )}
         </div>
         <div className="flex flex-1 flex-col gap-1 p-3 sm:p-4">
           <h3 className="font-display text-base font-bold leading-snug text-navy sm:text-lg">{b.nome}</h3>
           <p className="text-xs text-muted-foreground">{b.tipo === "estoque" ? "Brinde em estoque" : "Personalizável"}</p>
-          {/* Bloco de preço com altura reservada (duas linhas): estoque e personalizável ocupam o mesmo espaço no cartão. */}
+          {/* Bloco de preço com altura reservada: estoque e personalizável ocupam o mesmo espaço no cartão. Nada de estoque aqui. */}
           <div className="mt-auto min-h-10 pt-2">
             <PrecoBrinde modo="unitario" brinde={b} />
-            {b.tipo === "estoque" && (
-              <p className="text-sm font-semibold leading-5 text-foreground">
-                {s.indisponivel ? <span className="text-muted-foreground">Indisponível no momento</span> : <span>{disp} disponíveis</span>}
-              </p>
-            )}
           </div>
         </div>
       </a>
@@ -87,7 +80,7 @@ export function Vitrine() {
   return (
     <section className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6" aria-labelledby="vitrine-titulo">
       <h2 id="vitrine-titulo" className="sr-only">
-        Brindes disponíveis
+        Catálogo de brindes
       </h2>
 
       {/* Linha única: categorias com contador à esquerda (rolam dentro da própria linha), busca e ordenação à direita. */}
