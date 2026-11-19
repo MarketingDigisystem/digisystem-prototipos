@@ -1,0 +1,36 @@
+/* PROTÓTIPO DESCARTÁVEL — animações do redesign da Loja no Hub. Só transform/opacity; desligadas com movimento reduzido. */
+@keyframes hl-shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+.hl-shimmer {
+  background: linear-gradient(90deg, var(--muted) 0%, oklch(1 0 0 / 80%) 40%, var(--muted) 80%);
+  background-size: 800px 100%;
+  animation: hl-shimmer 1.2s linear infinite;
+  border-radius: 0.75rem;
+}
+@keyframes hl-entra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.hl-entra { animation: hl-entra 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.hl-entra-seq > * { animation: hl-entra 0.38s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.hl-entra-seq > *:nth-child(2) { animation-delay: 40ms; } .hl-entra-seq > *:nth-child(3) { animation-delay: 80ms; }
+.hl-entra-seq > *:nth-child(4) { animation-delay: 120ms; } .hl-entra-seq > *:nth-child(5) { animation-delay: 160ms; }
+.hl-entra-seq > *:nth-child(6) { animation-delay: 200ms; } .hl-entra-seq > *:nth-child(n+7) { animation-delay: 240ms; }
+@keyframes hl-pop { 0% { transform: scale(1); } 40% { transform: scale(1.22); } 100% { transform: scale(1); } }
+.hl-pop { display: inline-block; animation: hl-pop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes hl-check { 0% { transform: scale(0.4); opacity: 0; } 70% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); } }
+.hl-check { animation: hl-check 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes hl-toast { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: none; } }
+.hl-toast { animation: hl-toast 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes hl-barra { 0% { transform: translateX(-100%); } 100% { transform: translateX(260%); } }
+.hl-barra { animation: hl-barra 0.9s ease-in-out infinite; }
+@keyframes hl-halo { 0% { box-shadow: 0 0 0 0 oklch(0.705 0.192 41 / 45%); } 70% { box-shadow: 0 0 0 8px oklch(0.705 0.192 41 / 0%); } 100% { box-shadow: 0 0 0 0 oklch(0.705 0.192 41 / 0%); } }
+.hl-halo { animation: hl-halo 1.8s ease-out infinite; }
+.hl-cresce { transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1); transform-origin: left center; }
+.hl-cresce-y { transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1); transform-origin: bottom center; }
+.hl-fade { transition: opacity 0.22s ease; }
+.hl-elevar { transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease; }
+.hl-elevar:hover { transform: translateY(-2px); box-shadow: var(--shadow-float); }
+@media print { .hl-nao-imprime { display: none !important; } .hl-so-imprime { display: block !important; } }
+.hl-so-imprime { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .hl-shimmer, .hl-entra, .hl-entra-seq > *, .hl-pop, .hl-check, .hl-toast, .hl-barra, .hl-halo { animation: none !important; }
+  .hl-cresce, .hl-cresce-y, .hl-fade, .hl-elevar { transition: none !important; }
+  .hl-elevar:hover { transform: none; }
+}
