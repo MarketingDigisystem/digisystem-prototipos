@@ -2,13 +2,16 @@
 // Gerado de: Hub src/hub/pages/loja/Loja.tsx e src/hub/components/sidebar/modulos.ts @ origin/main aff470d (2026-11-19).
 // Fonte da verdade = Lovable/GitHub. Regenerar (não remendar) se o real mudar.
 // Decisão de design: docs-marketing-hub/implementacao/analise-redesign-loja-hub-2026-11-19.md
-// Escopo desta rodada (escolha do usuário): Pedidos e Estoque. As demais sub-abas ficam como "próxima rodada".
+// Rodada 1: Pedidos e Estoque. Rodada 2: Solicitações e Cadastro (rascunho automático ao aprovar sugestão).
+// Métricas, Acesso, Retirada e Ponte ficam como "próxima rodada".
 import { useEffect, useState } from "react";
 import { Search, Sun } from "lucide-react";
 import "./hub-loja.css";
-import { BRINDES, MOVS, PEDIDOS, REPOSICOES, type Brinde, type Mov, type Pedido, type Reposicao } from "./dados";
+import { BRINDES, MAIS, MOVS, PEDIDOS, REPOSICOES, SUGESTOES, type Brinde, type MaisUnidades, type Mov, type Pedido, type Reposicao, type Sugestao } from "./dados";
 import { Pedidos } from "./Pedidos";
 import { Estoque } from "./Estoque";
+import { Solicitacoes } from "./Solicitacoes";
+import { Cadastro } from "./Cadastro";
 import { CARTAO, ToastProvider, cx, useCarregando, Shimmer } from "./ui";
 
 const BASE = import.meta.env.BASE_URL;
@@ -34,6 +37,8 @@ export interface Loja {
   brindes: Brinde[]; setBrindes: (f: (b: Brinde[]) => Brinde[]) => void;
   movs: Mov[]; setMovs: (f: (m: Mov[]) => Mov[]) => void;
   reposicoes: Reposicao[]; setReposicoes: (f: (r: Reposicao[]) => Reposicao[]) => void;
+  sugestoes: Sugestao[]; setSugestoes: (f: (s: Sugestao[]) => Sugestao[]) => void;
+  mais: MaisUnidades[]; setMais: (f: (m: MaisUnidades[]) => MaisUnidades[]) => void;
   irPara: (aba: Aba, query?: string) => void;
 }
 
@@ -43,14 +48,17 @@ export function HubLoja() {
   const [brindes, setBrindes] = useState(BRINDES);
   const [movs, setMovs] = useState(MOVS);
   const [reposicoes, setReposicoes] = useState(REPOSICOES);
+  const [sugestoes, setSugestoes] = useState(SUGESTOES);
+  const [mais, setMais] = useState(MAIS);
   useEffect(() => {
     const f = () => setAba(abaDoHash());
     window.addEventListener("hashchange", f);
     return () => window.removeEventListener("hashchange", f);
   }, []);
   const irPara = (a: Aba, query = "") => { window.location.hash = `#/hub-loja/${a}${query}`; };
-  const loja: Loja = { pedidos, setPedidos, brindes, setBrindes, movs, setMovs, reposicoes, setReposicoes, irPara };
+  const loja: Loja = { pedidos, setPedidos, brindes, setBrindes, movs, setMovs, reposicoes, setReposicoes, sugestoes, setSugestoes, mais, setMais, irPara };
   const carregando = useCarregando(aba, 600);
+  const nAbertas = sugestoes.filter((s) => s.estado === "aberta").length + mais.filter((m) => m.estado === "aberta").length;
 
   return (
     <ToastProvider>
@@ -94,7 +102,9 @@ export function HubLoja() {
         <main className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6">
           {aba === "pedidos" ? <Pedidos loja={loja} carregando={carregando} /> : null}
           {aba === "estoque" ? <Estoque loja={loja} carregando={carregando} /> : null}
-          {aba !== "pedidos" && aba !== "estoque" ? <ProximaRodada aba={ABAS.find((x) => x.id === aba)!.rotulo} carregando={carregando} /> : null}
+          {aba === "solicitacoes" ? <Solicitacoes loja={loja} carregando={carregando} /> : null}
+          {aba === "cadastro" ? <Cadastro loja={loja} carregando={carregando} /> : null}
+          {!["pedidos", "estoque", "solicitacoes", "cadastro"].includes(aba) ? <ProximaRodada aba={ABAS.find((x) => x.id === aba)!.rotulo} carregando={carregando} /> : null}
         </main>
       </div>
     </ToastProvider>
@@ -107,8 +117,7 @@ function ProximaRodada({ aba, carregando }: { aba: string; carregando: boolean }
     <div className={cx(CARTAO, "hl-entra mx-auto max-w-xl p-8 text-center")}>
       <h1 className="font-display text-2xl font-bold text-primary">{aba}</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Esta sub-aba entra na próxima rodada do protótipo. Nesta primeira entrega o foco é Pedidos e Estoque.
-        {aba === "Solicitações" || aba === "Cadastro" ? " O rascunho automático do brinde aprovado vai aparecer aqui." : ""}
+        Esta sub-aba entra numa próxima rodada do protótipo. Por enquanto o foco é Pedidos, Estoque, Solicitações e Cadastro.
       </p>
     </div>
   );

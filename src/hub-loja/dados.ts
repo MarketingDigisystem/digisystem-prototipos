@@ -7,8 +7,13 @@ const BASE = import.meta.env.BASE_URL;
 export const foto = (arq: string) => `${BASE}brindes/${arq}`;
 
 export interface Brinde {
-  id: string; nome: string; categoria: string; foto: string | null; custo: number;
+  id: string; nome: string; categoria: string; foto: string | null; fotoExtra?: string | null;
+  /** Custo unitário; null = sem preço (o rascunho nasce assim). */
+  custo: number | null;
   saldo: number; reserva: number; guardadas: number; minimo: number; maximoPorPedido: number | null; ativo: boolean;
+  descricao?: string; novidade?: boolean;
+  /** Brinde criado automaticamente ao aprovar uma sugestão. Fica inativo, fora da vitrine e do Estoque, até ser publicado. */
+  rascunho?: { sugestaoId: string; sugeridoPor: string };
 }
 export const BRINDES: Brinde[] = [
   { id: "b1", nome: "Copo térmico com logo Digisystem", categoria: "Bem-estar", foto: foto("copo-termico.jpg"), custo: 54, saldo: 2, reserva: 2, guardadas: 0, minimo: 0, maximoPorPedido: null, ativo: true },
@@ -19,6 +24,70 @@ export const BRINDES: Brinde[] = [
   { id: "b6", nome: "Caderno espiral Selo 35 Anos", categoria: "Escritório", foto: foto("caderno-espiral-35-anos.jpg"), custo: 14.8, saldo: 20, reserva: 8, guardadas: 0, minimo: 5, maximoPorPedido: null, ativo: true },
   { id: "b7", nome: "Caderneta azul Digisystem", categoria: "Escritório", foto: foto("caderneta-azul-digisystem.jpg"), custo: 22.5, saldo: 37, reserva: 3, guardadas: 0, minimo: 0, maximoPorPedido: null, ativo: true },
   { id: "b8", nome: "Estojo de churrasco", categoria: "Casa e lazer", foto: foto("estojo-churrasco-fechado.jpg"), custo: 45, saldo: 1, reserva: 0, guardadas: 0, minimo: 0, maximoPorPedido: null, ativo: false },
+];
+
+const DESCRICAO: Record<string, string> = {
+  b1: "Copo térmico em aço inox, com tampa e logo Digisystem gravado a laser.",
+  b2: "Estojo com 9 peças em aço inox para churrasco, em bolsa com zíper.",
+  b3: "Caneta esferográfica azul com ponta touch para tela.",
+  b4: "Caderneta de capa dura azul com o selo de 35 anos da Digisystem.",
+  b5: "Caderno com capa de bambu e detalhes em laranja.",
+  b6: "Caderno espiral azul com o selo de 35 anos.",
+  b7: "Caderneta azul com elástico e o logo Digisystem.",
+  b8: "Estojo de churrasco em lona, fechado com fivela.",
+};
+for (const b of BRINDES) b.descricao = DESCRICAO[b.id];
+BRINDES.push({
+  id: "b9", nome: "Caneca de cerâmica 35 anos", categoria: "Bem-estar", foto: null, custo: null, saldo: 0, reserva: 0, guardadas: 0,
+  minimo: 0, maximoPorPedido: null, ativo: false, descricao: "Caneca branca de cerâmica com o selo de 35 anos.",
+  rascunho: { sugestaoId: "s6", sugeridoPor: "Mariana Souza" },
+});
+
+export type EstadoSugestao = "aberta" | "aprovada" | "recusada";
+export interface Sugestao {
+  id: string; nome: string; categoria: string; descricao: string; porQueCombina: string; link: string;
+  ocasioes: string[]; publicos: string[]; dataNecessaria: string; quantidadeEstimada: number | null; faixaCusto: string;
+  pessoa: string; email: string; area: string; estado: EstadoSugestao; motivo: string; criadoEm: string; brindeRascunhoId?: string;
+}
+export const ROTULO_FAIXA: Record<string, string> = {
+  ate_10: "Até R$ 10", "10_30": "De R$ 10 a R$ 30", "30_60": "De R$ 30 a R$ 60", "60_120": "De R$ 60 a R$ 120", acima_120: "Acima de R$ 120", nao_sei: "Não sei",
+};
+const sg = (s: Partial<Sugestao> & Pick<Sugestao, "id" | "nome" | "pessoa" | "email" | "area" | "criadoEm">): Sugestao => ({
+  categoria: "", descricao: "", porQueCombina: "", link: "", ocasioes: [], publicos: [], dataNecessaria: "", quantidadeEstimada: null,
+  faixaCusto: "", estado: "aberta", motivo: "", ...s,
+});
+export const SUGESTOES: Sugestao[] = [
+  sg({ id: "s1", nome: "Squeeze térmico 500 ml", categoria: "Bem-estar", descricao: "Garrafa térmica em aço inox, 500 ml, com logo gravado.",
+    porQueCombina: "Combina com o kit dos eventos de saúde e com o calendário de visitas do projeto Tasy.", link: "https://exemplo.com.br/squeeze-500",
+    ocasioes: ["Eventos", "Visitas a clientes"], publicos: ["Hospitais"], dataNecessaria: "2026-12-10", quantidadeEstimada: 30, faixaCusto: "30_60",
+    pessoa: "Rafael Lima", email: "rafael.lima@digisystem.com.br", area: "Saúde", criadoEm: "2026-11-17T10:20:00" }),
+  sg({ id: "s2", nome: "Carregador portátil com logo", categoria: "Tecnologia", descricao: "Bateria externa de 10.000 mAh com o logo Digisystem.",
+    quantidadeEstimada: 50, pessoa: "Juliana Prado", email: "juliana.prado@digisystem.com.br", area: "Pessoas e Cultura", criadoEm: "2026-11-12T15:05:00" }),
+  sg({ id: "s3", nome: "Garrafa térmica inox", categoria: "Bem-estar", porQueCombina: "Os clientes de governo pedem brinde útil para o dia a dia.",
+    ocasioes: ["Reuniões"], faixaCusto: "30_60", pessoa: "Patrícia Ramos", email: "patricia.ramos@digisystem.com.br", area: "Governo", criadoEm: "2026-11-05T09:40:00" }),
+  sg({ id: "s4", nome: "Mochila executiva", categoria: "Escritório", descricao: "Mochila para notebook de até 15 polegadas, cor azul-marinho.",
+    porQueCombina: "Para os diretores levarem nas visitas a clientes grandes.", ocasioes: ["Visitas a clientes"], publicos: ["Diretoria de clientes"],
+    quantidadeEstimada: 15, faixaCusto: "acima_120", pessoa: "Felipe Andrade", email: "felipe.andrade@digisystem.com.br", area: "Comercial", criadoEm: "2026-11-10T11:00:00" }),
+  sg({ id: "s5", nome: "Boné bordado", categoria: "Vestuário", pessoa: "Bruno Teixeira", email: "bruno.teixeira@digisystem.com.br", area: "Tecnologia",
+    estado: "recusada", motivo: "Vestuário não está no plano de brindes de 2026.", criadoEm: "2026-10-28T14:30:00" }),
+  sg({ id: "s6", nome: "Caneca de cerâmica 35 anos", categoria: "Bem-estar", descricao: "Caneca branca de cerâmica com o selo de 35 anos.",
+    ocasioes: ["Eventos"], quantidadeEstimada: 100, pessoa: "Mariana Souza", email: "mariana.souza@digisystem.com.br", area: "Comercial",
+    estado: "aprovada", criadoEm: "2026-11-03T16:10:00", brindeRascunhoId: "b9" }),
+];
+
+export type EstadoMais = "aberta" | "vamos_repor" | "nao_repor" | "outra_opcao";
+export interface MaisUnidades {
+  id: string; brindeId: string; qtd: number; motivo: string; pessoa: string; area: string; estado: EstadoMais;
+  previsao: string; motivoResposta: string; alternativoId: string; criadoEm: string;
+}
+const mu = (m: Partial<MaisUnidades> & Pick<MaisUnidades, "id" | "brindeId" | "qtd" | "pessoa" | "area" | "criadoEm">): MaisUnidades => ({
+  motivo: "", estado: "aberta", previsao: "", motivoResposta: "", alternativoId: "", ...m,
+});
+export const MAIS: MaisUnidades[] = [
+  mu({ id: "m1", brindeId: "b1", qtd: 10, motivo: "Feira de saúde em dezembro.", pessoa: "Aline Castro", area: "Marketing", estado: "vamos_repor", previsao: "2026-11-28", criadoEm: "2026-11-14T10:00:00" }),
+  mu({ id: "m2", brindeId: "b2", qtd: 2, motivo: "Visita ao cliente da Energisa.", pessoa: "Thiago Reis", area: "Energia e Utilities", estado: "vamos_repor", previsao: "2026-11-26", criadoEm: "2026-11-17T15:20:00" }),
+  mu({ id: "m3", brindeId: "b3", qtd: 80, motivo: "Treinamento de novos colaboradores, turma de dezembro.", pessoa: "Juliana Prado", area: "Pessoas e Cultura", criadoEm: "2026-11-18T09:30:00" }),
+  mu({ id: "m4", brindeId: "b5", qtd: 20, motivo: "Kit para o congresso de saúde digital.", pessoa: "Rafael Lima", area: "Saúde", criadoEm: "2026-11-19T08:45:00" }),
 ];
 
 export type TipoMov = "saldo_inicial" | "entrada" | "saida" | "ajuste";

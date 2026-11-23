@@ -45,7 +45,9 @@ const COR_SIT: Record<Alerta, string> = {
 
 export function Estoque({ loja, carregando }: { loja: Loja; carregando: boolean }) {
   const toast = useToast();
-  const { brindes, movs } = loja;
+  // Rascunhos (vindos de sugestão aprovada) não entram no Estoque até serem publicados.
+  const brindes = loja.brindes.filter((b) => !b.rascunho);
+  const { movs } = loja;
   const [cat, setCat] = useState<string>("Todas");
   const [sit, setSit] = useState<"todas" | "esgotado" | "cobertura" | "ok">("todas");
   const [selId, setSelId] = useState("b1");
@@ -55,7 +57,7 @@ export function Estoque({ loja, carregando }: { loja: Loja; carregando: boolean 
   const lista = brindes.filter((b) => (cat === "Todas" || b.categoria === cat) && (sit === "todas" || (sit === "esgotado" ? situacao(b, movs) === "esgotado" : sit === "cobertura" ? ["cobertura", "minimo"].includes(situacao(b, movs)) : situacao(b, movs) === "ok")));
   const sel = brindes.find((b) => b.id === selId) ?? brindes[0]!;
   const ativos = brindes.filter((b) => b.ativo);
-  const valor = ativos.reduce((s, b) => s + b.saldo * b.custo, 0);
+  const valor = ativos.reduce((s, b) => s + b.saldo * (b.custo ?? 0), 0);
   const reservado = brindes.reduce((s, b) => s + b.reserva, 0);
   const esgotados = ativos.filter((b) => disp(b) <= 0);
   const semMinimo = ativos.filter((b) => b.minimo <= 0).length;
@@ -134,7 +136,7 @@ function CartaoBrinde({ b, movs, sel, onClick }: { b: Brinde; movs: Mov[]; sel: 
           <span className="absolute bottom-3 right-3 rounded-full bg-card/90 px-2.5 py-0.5 text-xs text-foreground shadow-sm">{b.categoria}</span>
         </div>
         <div className="space-y-2.5 p-4">
-          <div><p className="font-semibold leading-snug text-primary">{b.nome}</p><p className="text-xs text-muted-foreground">{brl(b.custo)} por unidade</p></div>
+          <div><p className="font-semibold leading-snug text-primary">{b.nome}</p><p className="text-xs text-muted-foreground">{brl(b.custo ?? 0)} por unidade</p></div>
           <Composicao b={b} />
           <div className="grid grid-cols-3 text-xs text-muted-foreground">
             <span>Saldo<br /><Numero valor={b.saldo} className="font-display text-lg font-bold text-primary" /></span>
@@ -196,7 +198,7 @@ function Painel({ b, loja, registrarFoco }: { b: Brinde; loja: Loja; registrarFo
         <div>
           <p className={ROTULO_PEQUENO}>{b.categoria}</p>
           <h2 className="font-display text-2xl font-bold leading-tight text-primary">{b.nome}</h2>
-          <p className="text-sm text-muted-foreground">{brl(b.custo)} por unidade{b.maximoPorPedido ? ` · máximo de ${b.maximoPorPedido} por pedido` : " · sem limite por pedido"}</p>
+          <p className="text-sm text-muted-foreground">{brl(b.custo ?? 0)} por unidade{b.maximoPorPedido ? ` · máximo de ${b.maximoPorPedido} por pedido` : " · sem limite por pedido"}</p>
         </div>
         <div className="grid grid-cols-4 gap-2">
           {[["Saldo", b.saldo], ["Reserva", b.reserva], ["Guardadas", b.guardadas]].map(([r, v]) => (
@@ -238,7 +240,7 @@ function Painel({ b, loja, registrarFoco }: { b: Brinde; loja: Loja; registrarFo
                 <UserRound className="h-4 w-4 shrink-0" aria-hidden />
                 {previsto.length > 0
                   ? `Esta entrada atende primeiro ${previsto.length === 1 ? "1 pedido" : `${previsto.length} pedidos`} de mais unidades: ${previsto.map((r) => `${r.g} un. para ${r.pessoa}`).join(", ")}, guardadas até ${ddmm(somarDiasUteis(HOJE, PRAZO_GUARDADAS))} (${PRAZO_GUARDADAS} dias úteis).`
-                  : `${fila.length === 1 ? "1 pessoa espera" : `${fila.length} pessoas esperam`} reposição deste brinde (${fila.map((r) => r.pessoa).join(", ")}). A próxima entrada guarda para elas primeiro.`}
+                  : `${fila.length === 1 ? "1 pessoa espera" : `${fila.length} pessoas esperam`} reposição deste brinde (${fila.map((r) => r.pessoa).join(", ")}). A próxima entrada guarda para ${fila.length === 1 ? "ela" : "elas"} primeiro.`}
               </p>
             ) : null}
           </div>
@@ -267,7 +269,7 @@ function Painel({ b, loja, registrarFoco }: { b: Brinde; loja: Loja; registrarFo
 
 function ContagemFisica({ loja, fechar }: { loja: Loja; fechar: () => void }) {
   const toast = useToast();
-  const ativos = loja.brindes.filter((b) => b.ativo);
+  const ativos = loja.brindes.filter((b) => b.ativo && !b.rascunho);
   const [valores, setValores] = useState<Record<string, string>>({});
   const [erros, setErros] = useState<Record<string, string>>({});
   const difs = useMemo(() => ativos.map((b) => ({ b, v: lerInteiro(valores[b.id] ?? "") })).filter((x) => Number.isInteger(x.v) && x.v !== x.b.saldo), [ativos, valores]);
