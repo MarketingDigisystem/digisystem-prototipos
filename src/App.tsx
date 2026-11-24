@@ -1,9 +1,10 @@
 // PROTÓTIPO DESCARTÁVEL — não é o app. Fonte da verdade = Lovable.
 // UI limpa (sem banner) para refino visual — a proveniência vive no código e no README.
-// Este app tem três protótipos (2026-11-11: Digi Store e Login; 2026-11-19: redesign da Loja no Hub):
+// Este app tem quatro protótipos (2026-11-11: Digi Store e Login; 2026-11-19: redesign da Loja no Hub; 2026-11-24: abas de configuração da Loja):
 //   - Digi Store (src/loja-equilibrio/), rota #/loja-equilibrio. É a rota padrão.
 //   - Login (src/auth-proto/), rota #/auth.
 //   - Hub › Loja redesenhada (src/hub-loja/), rota #/hub-loja (decisão: docs-marketing-hub/implementacao/analise-redesign-loja-hub-2026-11-19.md).
+//   - Hub › Loja (config) (src/hub-loja-config/), rota #/hub-loja-config: Métricas, Retirada, Acesso e Ponte (decisão: docs-marketing-hub/implementacao/analise-redesign-loja-hub-config-2026-11-24.md).
 // Decisão de design correspondente: .agents/tasks/loja-equilibrio/ e .kiro/specs/loja-equilibrio-digiplace/.
 // Os demais protótipos (DigiPlace, Digi Store antiga, Redes, Estúdio, Hub) foram removidos; o histórico
 // está no repositório publicado digisystem-prototipos.
@@ -11,13 +12,15 @@ import { useEffect, useState } from "react";
 import { AuthProto } from "./auth-proto/AuthProto";
 import { LojaEquilibrio } from "./loja-equilibrio/LojaEquilibrio";
 import { HubLoja } from "./hub-loja/HubLoja";
+import { HubLojaConfig } from "./hub-loja-config/HubLojaConfig";
 
-type ProtoId = "auth" | "loja-equilibrio" | "hub-loja";
+type ProtoId = "auth" | "loja-equilibrio" | "hub-loja" | "hub-loja-config";
 
 const PROTOTIPOS: { id: ProtoId; rotulo: string }[] = [
   { id: "loja-equilibrio", rotulo: "Digi Store" },
   { id: "auth", rotulo: "Login" },
   { id: "hub-loja", rotulo: "Hub › Loja" },
+  { id: "hub-loja-config", rotulo: "Hub › Loja (config)" },
 ];
 
 const ROTA_PADRAO = "#/loja-equilibrio";
@@ -32,12 +35,12 @@ function raizDoHash(): string {
 // #/redes, #/estudio-*...) e vai para a Digi Store. A raiz "loja-equilibrio" é válida, então não há laço.
 function ehLinkAntigo(): boolean {
   const raiz = raizDoHash();
-  return raiz !== "" && raiz !== "auth" && raiz !== "loja-equilibrio" && raiz !== "hub-loja";
+  return raiz !== "" && raiz !== "auth" && raiz !== "loja-equilibrio" && raiz !== "hub-loja" && raiz !== "hub-loja-config";
 }
 
 function protoDoHash(): ProtoId {
   const r = raizDoHash();
-  return r === "auth" ? "auth" : r === "hub-loja" ? "hub-loja" : "loja-equilibrio";
+  return r === "auth" ? "auth" : r === "hub-loja" ? "hub-loja" : r === "hub-loja-config" ? "hub-loja-config" : "loja-equilibrio";
 }
 
 // Antes da primeira renderização: troca o hash do link antigo sem criar entrada no histórico e sem
@@ -66,7 +69,7 @@ export function App() {
   }, []);
 
   function escolher(id: ProtoId) {
-    window.location.hash = id === "auth" ? "#/auth" : id === "hub-loja" ? "#/hub-loja" : ROTA_PADRAO;
+    window.location.hash = id === "auth" ? "#/auth" : id === "hub-loja" ? "#/hub-loja" : id === "hub-loja-config" ? "#/hub-loja-config" : ROTA_PADRAO;
   }
 
   return (
@@ -117,7 +120,7 @@ export function App() {
         </div>
       )}
 
-      {proto === "auth" ? <AuthProto /> : proto === "hub-loja" ? <HubLoja /> : <LojaEquilibrio />}
+      {proto === "auth" ? <AuthProto /> : proto === "hub-loja" ? <HubLoja /> : proto === "hub-loja-config" ? <HubLojaConfig /> : <LojaEquilibrio />}
     </>
   );
 }

@@ -1,0 +1,56 @@
+/* PROTÓTIPO DESCARTÁVEL — Hub › Loja (config). Escopo `.hlc`. Só transform e opacity; tudo desligado com movimento reduzido.
+   Reaproveita hl-entra, hl-entra-seq, hl-pop, hl-check, hl-cresce, hl-fade e hl-barra de ../hub-loja/hub-loja.css.
+   Nunca usa hl-halo (anima box-shadow). O hl-shimmer original (background-position) é substituído abaixo. */
+
+/* Esqueleto e shimmer por transform: varredura de um pseudoelemento sobre fundo estático. */
+.hlc .hl-shimmer,
+.hlc .hlc-esqueleto {
+  animation: none;
+  background: var(--muted);
+  background-size: auto;
+  overflow: hidden;
+}
+.hlc .hl-shimmer:not(.absolute),
+.hlc .hlc-esqueleto { position: relative; }
+.hlc .hl-shimmer::after,
+.hlc .hlc-esqueleto::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, oklch(1 0 0 / 70%) 50%, transparent 100%);
+  transform: translateX(-100%);
+  animation: hlc-varre 1.2s ease-in-out infinite;
+}
+@keyframes hlc-varre { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+/* Aviso e confirmação: o conteúdo entra por opacity e translateY; a caixa não muda de altura. */
+@keyframes hlc-entra-caixa { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.hlc .hlc-caixa-entra { animation: hlc-entra-caixa 0.22s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Barras de gasto: largura final por scaleX, origem à esquerda. */
+.hlc .hlc-barra-escala {
+  transform-origin: left center;
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Foco visível em todo controle do protótipo. */
+.hlc button:focus-visible,
+.hlc input:focus-visible,
+.hlc select:focus-visible,
+.hlc a:focus-visible,
+.hlc [tabindex]:focus-visible {
+  outline: 2px solid var(--ring, #36499b);
+  outline-offset: 2px;
+}
+
+/* Rolagem horizontal só na barra de abas, sem barra visível poluindo o cabeçalho. */
+.hlc .hlc-abas { scrollbar-width: thin; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hlc .hl-shimmer::after,
+  .hlc .hlc-esqueleto::after,
+  .hlc .hlc-caixa-entra { animation: none !important; }
+  .hlc .hl-shimmer::after,
+  .hlc .hlc-esqueleto::after { display: none; }
+  .hlc .hlc-barra-escala { transition: none !important; }
+}
