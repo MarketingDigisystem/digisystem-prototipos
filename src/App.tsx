@@ -13,14 +13,16 @@ import { AuthProto } from "./auth-proto/AuthProto";
 import { LojaEquilibrio } from "./loja-equilibrio/LojaEquilibrio";
 import { HubLoja } from "./hub-loja/HubLoja";
 import { HubLojaConfig } from "./hub-loja-config/HubLojaConfig";
+import { MercadoProto } from "./mercado/MercadoProto";
 
-type ProtoId = "auth" | "loja-equilibrio" | "hub-loja" | "hub-loja-config";
+type ProtoId = "auth" | "loja-equilibrio" | "hub-loja" | "hub-loja-config" | "mercado";
 
 const PROTOTIPOS: { id: ProtoId; rotulo: string }[] = [
   { id: "loja-equilibrio", rotulo: "Digi Store" },
   { id: "auth", rotulo: "Login" },
   { id: "hub-loja", rotulo: "Hub › Loja" },
   { id: "hub-loja-config", rotulo: "Hub › Loja (config)" },
+  { id: "mercado", rotulo: "Mercado" },
 ];
 
 const ROTA_PADRAO = "#/loja-equilibrio";
@@ -35,12 +37,12 @@ function raizDoHash(): string {
 // #/redes, #/estudio-*...) e vai para a Digi Store. A raiz "loja-equilibrio" é válida, então não há laço.
 function ehLinkAntigo(): boolean {
   const raiz = raizDoHash();
-  return raiz !== "" && raiz !== "auth" && raiz !== "loja-equilibrio" && raiz !== "hub-loja" && raiz !== "hub-loja-config";
+  return raiz !== "" && raiz !== "auth" && raiz !== "loja-equilibrio" && raiz !== "hub-loja" && raiz !== "hub-loja-config" && raiz !== "mercado";
 }
 
 function protoDoHash(): ProtoId {
   const r = raizDoHash();
-  return r === "auth" ? "auth" : r === "hub-loja" ? "hub-loja" : r === "hub-loja-config" ? "hub-loja-config" : "loja-equilibrio";
+  return r === "auth" ? "auth" : r === "hub-loja" ? "hub-loja" : r === "hub-loja-config" ? "hub-loja-config" : r === "mercado" ? "mercado" : "loja-equilibrio";
 }
 
 // Antes da primeira renderização: troca o hash do link antigo sem criar entrada no histórico e sem
@@ -69,7 +71,7 @@ export function App() {
   }, []);
 
   function escolher(id: ProtoId) {
-    window.location.hash = id === "auth" ? "#/auth" : id === "hub-loja" ? "#/hub-loja" : id === "hub-loja-config" ? "#/hub-loja-config" : ROTA_PADRAO;
+    window.location.hash = id === "auth" ? "#/auth" : id === "hub-loja" ? "#/hub-loja" : id === "hub-loja-config" ? "#/hub-loja-config" : id === "mercado" ? "#/mercado" : ROTA_PADRAO;
   }
 
   return (
@@ -120,7 +122,7 @@ export function App() {
         </div>
       )}
 
-      {proto === "auth" ? <AuthProto /> : proto === "hub-loja" ? <HubLoja /> : proto === "hub-loja-config" ? <HubLojaConfig /> : <LojaEquilibrio />}
+      {proto === "auth" ? <AuthProto /> : proto === "hub-loja" ? <HubLoja /> : proto === "hub-loja-config" ? <HubLojaConfig /> : proto === "mercado" ? <MercadoProto /> : <LojaEquilibrio />}
     </>
   );
 }

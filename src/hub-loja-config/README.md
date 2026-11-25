@@ -8,3 +8,4 @@ Não é o app. Fonte da verdade = Lovable/GitHub. Regenerar (não remendar) se o
 - Decisão de design: `docs-marketing-hub/implementacao/analise-redesign-loja-hub-config-2026-11-24.md` (documento de análise da rodada 3: o que existe hoje, problemas de uso, propostas novas, arquivos do app real afetados, divergências D1 a D7 e decisões abertas da dona do produto).
 - Spec: `.kiro/specs/loja-hub-config-prototipo/`.
 - Não edita nada de `../hub-loja/`: só importa `ui.tsx` e `hub-loja.css`.
+- **CONSUMIDO em 2026-11-24 pelos PRs do Hub #132, #133 e #134.** O Lovable é a fonte da verdade. Não copiar de volta; regenerar a partir do código real se preciso.
